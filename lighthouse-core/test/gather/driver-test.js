@@ -153,6 +153,17 @@ describe('.readIOStream', () => {
     expect(data).toEqual('Hello World!');
   });
 
+  it('decodes multiple base64 reads', async () => {
+    const buffer1 = Buffer.from('Hello ').toString('base64');
+    const buffer2 = Buffer.from('World!').toString('base64');
+    connectionStub.sendCommand = createMockSendCommandFn()
+      .mockResponse('IO.read', {data: buffer1, eof: false, base64Encoded: true})
+      .mockResponse('IO.read', {data: buffer2, eof: true, base64Encoded: true});
+
+    const data = await driver.readIOStream('1');
+    expect(data).toEqual('Hello World!');
+  });
+
   it('throws on timeout', async () => {
     // @ts-expect-error
     connectionStub.sendCommand = jest.fn()

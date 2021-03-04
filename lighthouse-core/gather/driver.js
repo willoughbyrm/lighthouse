@@ -645,12 +645,13 @@ class Driver {
         throw new Error('Waiting for the end of the IO stream exceeded the allotted time.');
       }
       ioResponse = await this.sendCommand('IO.read', {handle});
-      data = data.concat(ioResponse.data);
+
+      const responseData = ioResponse.base64Encoded ?
+        Buffer.from(ioResponse.data, 'base64').toString('utf-8') :
+        ioResponse.data;
+      data = data.concat(responseData);
     }
 
-    if (ioResponse.base64Encoded) {
-      data = Buffer.from(data, 'base64').toString('utf-8');
-    }
     return data;
   }
 
