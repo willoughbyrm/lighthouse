@@ -29,7 +29,7 @@ class SourceMaps extends Gatherer {
    */
   async fetchSourceMap(driver, sourceMapUrl) {
     try {
-      const fileData = await driver.fetchFileOverProtocol(sourceMapUrl);
+      const fileData = await driver.fetchResourceOverProtocol(sourceMapUrl);
       return JSON.parse(fileData);
     } catch (err) {
       log.warn(

@@ -187,7 +187,7 @@ describe('.fetchFileOverProtocol', () => {
         resource: {success: true, httpStatusCode: 200, stream: '1'},
       });
 
-    const data = await driver.fetchFileOverProtocol('https://example.com');
+    const data = await driver.fetchResourceOverProtocol('https://example.com');
     expect(data).toEqual(streamContents);
   });
 
@@ -198,13 +198,13 @@ describe('.fetchFileOverProtocol', () => {
         resource: {success: false, httpStatusCode: 404},
       });
 
-    const dataPromise = driver.fetchFileOverProtocol('https://example.com');
+    const dataPromise = driver.fetchResourceOverProtocol('https://example.com');
     await expect(dataPromise).rejects.toThrowError(/Loading network resource failed/);
   });
 
   it('throws on old chrome version', async () => {
     browserMilestone = 86;
-    const dataPromise = driver.fetchFileOverProtocol('https://example.com');
+    const dataPromise = driver.fetchResourceOverProtocol('https://example.com');
     await expect(dataPromise).rejects.toThrowError(/UNSUPPORTED_OLD_CHROME/);
   });
 });

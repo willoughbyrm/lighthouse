@@ -100,7 +100,7 @@ describe('SourceMaps gatherer', () => {
 
     const driver = new Driver(connectionStub);
     driver.fetcher.fetchResource = fetchMock;
-    driver.fetchFileOverProtocol = fetchProtocolMock;
+    driver.fetchResourceOverProtocol = fetchProtocolMock;
 
     const sourceMaps = new SourceMaps();
     await sourceMaps.beforePass({driver});
