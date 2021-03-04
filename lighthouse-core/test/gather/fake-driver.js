@@ -14,7 +14,7 @@ function makeFakeDriver({protocolGetVersionResponse}) {
   return {
     get fetcher() {
       return {
-        disableRequestInterception: () => Promise.resolve(),
+        disable: () => Promise.resolve(),
       };
     },
     getBrowserVersion() {
