@@ -9,6 +9,7 @@
 
 const Gatherer = require('./gatherer.js');
 const URL = require('../../lib/url-shim.js');
+const log = require('lighthouse-logger');
 
 /**
  * @fileoverview Gets JavaScript source maps.
@@ -27,6 +28,15 @@ class SourceMaps extends Gatherer {
    * @return {Promise<LH.Artifacts.RawSourceMap>}
    */
   async fetchSourceMap(driver, sourceMapUrl) {
+    try {
+      const fileData = await driver.fetchFileOverProtocol(sourceMapUrl);
+      return JSON.parse(fileData);
+    } catch (err) {
+      log.warn(
+        'SourceMaps',
+        `Could not fetch source map (${sourceMapUrl}) over protocol -- ${err}`
+      );
+    }
     /** @type {string} */
     const sourceMapJson = await driver.fetcher.fetchResource(sourceMapUrl, {timeout: 1500});
     return JSON.parse(sourceMapJson);
@@ -130,6 +140,7 @@ class SourceMaps extends Gatherer {
 
     driver.off('Debugger.scriptParsed', this.onScriptParsed);
     await driver.sendCommand('Debugger.disable');
+    await driver.sendCommand('Network.enable');
 
     await driver.fetcher.enableRequestInterception();
     const eventProcessPromises = this._scriptParsedEvents

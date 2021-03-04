@@ -125,6 +125,90 @@ describe('.getRequestContent', () => {
   });
 });
 
+describe('.readIOStream', () => {
+  it('reads contents of stream', async () => {
+    connectionStub.sendCommand = createMockSendCommandFn()
+      .mockResponse('IO.read', {data: 'Hello World!', eof: true, base64Encoded: false});
+
+    const data = await driver.readIOStream('1');
+    expect(data).toEqual('Hello World!');
+  });
+
+  it('combines multiple reads', async () => {
+    connectionStub.sendCommand = createMockSendCommandFn()
+      .mockResponse('IO.read', {data: 'Hello ', eof: false, base64Encoded: false})
+      .mockResponse('IO.read', {data: 'World', eof: false, base64Encoded: false})
+      .mockResponse('IO.read', {data: '!', eof: true, base64Encoded: false});
+
+    const data = await driver.readIOStream('1');
+    expect(data).toEqual('Hello World!');
+  });
+
+  it('decodes if base64', async () => {
+    const buffer = Buffer.from('Hello World!').toString('base64');
+    connectionStub.sendCommand = createMockSendCommandFn()
+      .mockResponse('IO.read', {data: buffer, eof: true, base64Encoded: true});
+
+    const data = await driver.readIOStream('1');
+    expect(data).toEqual('Hello World!');
+  });
+
+  it('throws on timeout', async () => {
+    // @ts-expect-error
+    connectionStub.sendCommand = jest.fn()
+      .mockReturnValue(Promise.resolve({data: 'No stop', eof: false, base64Encoded: false}));
+
+    const dataPromise = driver.readIOStream('1', {timeout: 50});
+    await expect(dataPromise).rejects.toThrowError(/Waiting for the end of the IO stream/);
+  });
+});
+
+describe('.fetchFileOverProtocol', () => {
+  /** @type {string} */
+  let streamContents;
+  /** @type {number} */
+  let browserMilestone;
+
+  beforeEach(() => {
+    streamContents = 'STREAM CONTENTS';
+    browserMilestone = 90;
+    driver.readIOStream = jest.fn().mockImplementation(() => {
+      return Promise.resolve(streamContents);
+    });
+    driver.getBrowserVersion = jest.fn().mockImplementation(() => {
+      return Promise.resolve({milestone: browserMilestone});
+    });
+  });
+
+  it('fetches a file', async () => {
+    connectionStub.sendCommand = createMockSendCommandFn()
+      .mockResponse('Page.getFrameTree', {frameTree: {frame: {id: 'FRAME'}}})
+      .mockResponse('Network.loadNetworkResource', {
+        resource: {success: true, httpStatusCode: 200, stream: '1'},
+      });
+
+    const data = await driver.fetchFileOverProtocol('https://example.com');
+    expect(data).toEqual(streamContents);
+  });
+
+  it('throws when resource could not be fetched', async () => {
+    connectionStub.sendCommand = createMockSendCommandFn()
+      .mockResponse('Page.getFrameTree', {frameTree: {frame: {id: 'FRAME'}}})
+      .mockResponse('Network.loadNetworkResource', {
+        resource: {success: false, httpStatusCode: 404},
+      });
+
+    const dataPromise = driver.fetchFileOverProtocol('https://example.com');
+    await expect(dataPromise).rejects.toThrowError(/Loading network resource failed/);
+  });
+
+  it('throws on old chrome version', async () => {
+    browserMilestone = 86;
+    const dataPromise = driver.fetchFileOverProtocol('https://example.com');
+    await expect(dataPromise).rejects.toThrowError(/UNSUPPORTED_OLD_CHROME/);
+  });
+});
+
 describe('.evaluateAsync', () => {
   // The logic here is tested by lighthouse-core/test/gather/driver/execution-context-test.js
   // Just exercise a bit of the plumbing here to ensure we delegate correctly for plugin backcompat.
@@ -262,6 +346,7 @@ describe('.gotoURL', () => {
       id: 'ABC', loaderId: '', securityOrigin: '', mimeType: 'text/html', domainAndRegistry: '',
       secureContextType: /** @type {'Secure'} */ ('Secure'),
       crossOriginIsolatedContextType: /** @type {'Isolated'} */ ('Isolated'),
+      gatedAPIFeatures: [],
     };
     navigate({...baseFrame, url: 'http://example.com'});
     navigate({...baseFrame, url: 'https://example.com'});
