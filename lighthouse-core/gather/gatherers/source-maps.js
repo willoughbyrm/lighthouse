@@ -28,7 +28,7 @@ class SourceMaps extends Gatherer {
    */
   async fetchSourceMap(driver, sourceMapUrl) {
     /** @type {string} */
-    const sourceMapJson = await driver.fetcher.fetchResource(sourceMapUrl, {timeout: 1500});
+    const sourceMapJson = await driver.fetcher.fetchResource(sourceMapUrl, {timeout: 10000});
     return JSON.parse(sourceMapJson);
   }
 
