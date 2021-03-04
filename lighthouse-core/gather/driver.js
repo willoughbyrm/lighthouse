@@ -660,7 +660,7 @@ class Driver {
    */
   async fetchResourceOverProtocol(url) {
     const milestone = await this.getBrowserVersion().then(v => v.milestone);
-    if (milestone < 87) {
+    if (milestone < 88) {
       throw new LHError(LHError.errors.UNSUPPORTED_OLD_CHROME, {
         featureName: 'Network.loadNetworkResource',
       });
