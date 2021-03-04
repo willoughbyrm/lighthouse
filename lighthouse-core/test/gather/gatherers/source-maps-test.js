@@ -30,7 +30,7 @@ describe('SourceMaps gatherer', () => {
    * `resolvedSourceMapUrl` is used to assert that the SourceMaps gatherer is using the expected
    *                        url to fetch the source map.
    * `fetchError` mocks an error that happens in the page. Only fetch error message make sense.
-   * @param {Array<{scriptParsedEvent: LH.Crdp.Debugger.ScriptParsedEvent, map: string, resolvedSourceMapUrl?: string, fetchProtocolError: string, fetchError: string}>} mapsAndEvents
+   * @param {Array<{scriptParsedEvent: LH.Crdp.Debugger.ScriptParsedEvent, map: string, resolvedSourceMapUrl?: string, fetchError: string}>} mapsAndEvents
    * @return {Promise<LH.Artifacts['SourceMaps']>}
    */
   async function runSourceMaps(mapsAndEvents) {
@@ -45,20 +45,11 @@ describe('SourceMaps gatherer', () => {
     const sendCommandMock = createMockSendCommandFn()
       .mockResponse('Debugger.enable', {})
       .mockResponse('Debugger.disable', {})
-      .mockResponse('Network.enable', {})
       .mockResponse('Fetch.enable', {})
       .mockResponse('Fetch.disable', {});
     const fetchMock = jest.fn();
-    const fetchProtocolMock = jest.fn();
 
-    for (const mapAndEvent of mapsAndEvents) {
-      const {
-        scriptParsedEvent,
-        map,
-        resolvedSourceMapUrl,
-        fetchProtocolError,
-        fetchError,
-      } = mapAndEvent;
+    for (const {scriptParsedEvent, map, resolvedSourceMapUrl, fetchError} of mapsAndEvents) {
       onMock.mockEvent('protocolevent', {
         method: 'Debugger.scriptParsed',
         params: scriptParsedEvent,
@@ -81,18 +72,6 @@ describe('SourceMaps gatherer', () => {
 
         return map;
       });
-      fetchProtocolMock.mockImplementationOnce(async (sourceMapUrl) => {
-        // Check that the source map url was resolved correctly.
-        if (resolvedSourceMapUrl) {
-          expect(sourceMapUrl).toBe(resolvedSourceMapUrl);
-        }
-
-        if (fetchProtocolError) {
-          throw new Error(fetchProtocolError);
-        }
-
-        return map;
-      });
     }
     const connectionStub = new Connection();
     connectionStub.sendCommand = sendCommandMock;
@@ -100,7 +79,6 @@ describe('SourceMaps gatherer', () => {
 
     const driver = new Driver(connectionStub);
     driver.fetcher.fetchResource = fetchMock;
-    driver.fetchResourceOverProtocol = fetchProtocolMock;
 
     const sourceMaps = new SourceMaps();
     await sourceMaps.beforePass({driver});
@@ -126,7 +104,7 @@ describe('SourceMaps gatherer', () => {
     expect(artifact).toEqual([]);
   });
 
-  it('fetches map over protocol for script with source map url', async () => {
+  it('fetches map for script with source map url', async () => {
     const mapsAndEvents = [
       {
         scriptParsedEvent: {
@@ -135,28 +113,6 @@ describe('SourceMaps gatherer', () => {
         },
         map: mapJson,
         resolvedSourceMapUrl: 'http://www.example.com/bundle.js.map',
-      },
-    ];
-    const artifact = await runSourceMaps(mapsAndEvents);
-    expect(artifact).toEqual([
-      {
-        scriptUrl: mapsAndEvents[0].scriptParsedEvent.url,
-        sourceMapUrl: mapsAndEvents[0].scriptParsedEvent.sourceMapURL,
-        map: JSON.parse(mapsAndEvents[0].map),
-      },
-    ]);
-  });
-
-  it('falls back to fetcher when fetching over protocol fails', async () => {
-    const mapsAndEvents = [
-      {
-        scriptParsedEvent: {
-          url: 'http://www.example.com/bundle.js',
-          sourceMapURL: 'http://www.example.com/bundle.js.map',
-        },
-        map: mapJson,
-        resolvedSourceMapUrl: 'http://www.example.com/bundle.js.map',
-        fetchProtocolError: 'Timeout',
       },
     ];
     const artifact = await runSourceMaps(mapsAndEvents);
@@ -223,7 +179,6 @@ describe('SourceMaps gatherer', () => {
           url: 'http://www.example.com/bundle.js',
           sourceMapURL: 'http://www.example.com/bundle.js.map',
         },
-        fetchProtocolError: 'Timeout',
         fetchError: 'Failed fetching source map',
       },
     ];

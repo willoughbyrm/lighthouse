@@ -656,36 +656,6 @@ class Driver {
   }
 
   /**
-   * @param {string} url
-   * @return {Promise<string>}
-   */
-  async fetchResourceOverProtocol(url) {
-    const milestone = await this.getBrowserVersion().then(v => v.milestone);
-    if (milestone < 88) {
-      throw new LHError(LHError.errors.UNSUPPORTED_OLD_CHROME, {
-        featureName: 'Network.loadNetworkResource',
-      });
-    }
-
-    const frameTreeResponse = await this.sendCommand('Page.getFrameTree');
-    const networkResponse = await this.sendCommand('Network.loadNetworkResource', {
-      frameId: frameTreeResponse.frameTree.frame.id,
-      url,
-      options: {
-        disableCache: true,
-        includeCredentials: true,
-      },
-    });
-
-    if (!networkResponse.resource.success || !networkResponse.resource.stream) {
-      const statusCode = networkResponse.resource.httpStatusCode || '';
-      throw new Error(`Loading network resource failed (${statusCode})`);
-    }
-
-    return await this.readIOStream(networkResponse.resource.stream);
-  }
-
-  /**
    * Resolves a backend node ID (from a trace event, protocol, etc) to the object ID for use with
    * `Runtime.callFunctionOn`. `undefined` means the node could not be found.
    *

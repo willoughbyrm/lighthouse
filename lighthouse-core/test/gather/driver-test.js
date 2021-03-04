@@ -174,52 +174,6 @@ describe('.readIOStream', () => {
   });
 });
 
-describe('.fetchFileOverProtocol', () => {
-  /** @type {string} */
-  let streamContents;
-  /** @type {number} */
-  let browserMilestone;
-
-  beforeEach(() => {
-    streamContents = 'STREAM CONTENTS';
-    browserMilestone = 90;
-    driver.readIOStream = jest.fn().mockImplementation(() => {
-      return Promise.resolve(streamContents);
-    });
-    driver.getBrowserVersion = jest.fn().mockImplementation(() => {
-      return Promise.resolve({milestone: browserMilestone});
-    });
-  });
-
-  it('fetches a file', async () => {
-    connectionStub.sendCommand = createMockSendCommandFn()
-      .mockResponse('Page.getFrameTree', {frameTree: {frame: {id: 'FRAME'}}})
-      .mockResponse('Network.loadNetworkResource', {
-        resource: {success: true, httpStatusCode: 200, stream: '1'},
-      });
-
-    const data = await driver.fetchResourceOverProtocol('https://example.com');
-    expect(data).toEqual(streamContents);
-  });
-
-  it('throws when resource could not be fetched', async () => {
-    connectionStub.sendCommand = createMockSendCommandFn()
-      .mockResponse('Page.getFrameTree', {frameTree: {frame: {id: 'FRAME'}}})
-      .mockResponse('Network.loadNetworkResource', {
-        resource: {success: false, httpStatusCode: 404},
-      });
-
-    const dataPromise = driver.fetchResourceOverProtocol('https://example.com');
-    await expect(dataPromise).rejects.toThrowError(/Loading network resource failed/);
-  });
-
-  it('throws on old chrome version', async () => {
-    browserMilestone = 86;
-    const dataPromise = driver.fetchResourceOverProtocol('https://example.com');
-    await expect(dataPromise).rejects.toThrowError(/UNSUPPORTED_OLD_CHROME/);
-  });
-});
-
 describe('.evaluateAsync', () => {
   // The logic here is tested by lighthouse-core/test/gather/driver/execution-context-test.js
   // Just exercise a bit of the plumbing here to ensure we delegate correctly for plugin backcompat.
