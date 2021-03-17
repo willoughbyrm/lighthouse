@@ -113,15 +113,17 @@ class Fetcher {
    * @param {{timeout: number}=} options,
    * @return {Promise<string>}
    */
-  async _readIOStream(handle, options = {timeout: 5000}) {
+  async _readIOStream(handle, options = {timeout: 500}) {
     const startTime = Date.now();
 
     let ioResponse;
     let data = '';
     while (!ioResponse || !ioResponse.eof) {
-      if (Date.now() - startTime > options.timeout) {
+      const elapsedTime = Date.now() - startTime;
+      if (elapsedTime > options.timeout) {
         throw new Error('Waiting for the end of the IO stream exceeded the allotted time.');
       }
+      this.driver.setNextProtocolTimeout(options.timeout - elapsedTime);
       ioResponse = await this.driver.sendCommand('IO.read', {handle});
 
       const responseData = ioResponse.base64Encoded ?
@@ -139,24 +141,38 @@ class Fetcher {
    * @return {Promise<string>}
    */
   async _fetchResourceOverProtocol(url, options = {timeout: 500}) {
-    await this.driver.sendCommand('Network.enable');
-    const frameTreeResponse = await this.driver.sendCommand('Page.getFrameTree');
-    const networkResponse = await this.driver.sendCommand('Network.loadNetworkResource', {
-      frameId: frameTreeResponse.frameTree.frame.id,
-      url,
-      options: {
-        disableCache: true,
-        includeCredentials: true,
-      },
+    /** @type {NodeJS.Timeout} */
+    let timeoutHandle;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        reject(new Error('Timed out fetching resource'));
+      }, options.timeout);
     });
-    await this.driver.sendCommand('Network.disable');
+    const fetchStreamPromise = new Promise(async (resolve, reject) => {
+      await this.driver.sendCommand('Network.enable');
+      const frameTreeResponse = await this.driver.sendCommand('Page.getFrameTree');
+      const networkResponse = await this.driver.sendCommand('Network.loadNetworkResource', {
+        frameId: frameTreeResponse.frameTree.frame.id,
+        url,
+        options: {
+          disableCache: true,
+          includeCredentials: true,
+        },
+      });
+      await this.driver.sendCommand('Network.disable');
 
-    if (!networkResponse.resource.success || !networkResponse.resource.stream) {
-      const statusCode = networkResponse.resource.httpStatusCode || '';
-      throw new Error(`Loading network resource failed (${statusCode})`);
-    }
+      if (!networkResponse.resource.success || !networkResponse.resource.stream) {
+        const statusCode = networkResponse.resource.httpStatusCode || '';
+        reject(new Error(`Loading network resource failed (${statusCode})`));
+      }
 
-    return await this._readIOStream(networkResponse.resource.stream, options);
+      resolve(networkResponse.resource.stream);
+    });
+
+    const stream = await Promise.race([fetchStreamPromise, timeoutPromise])
+      .finally(() => clearTimeout(timeoutHandle));
+
+    return await this._readIOStream(stream);
   }
 
   /**

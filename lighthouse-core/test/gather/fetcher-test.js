@@ -144,4 +144,17 @@ describe('._fetchResourceOverProtocol', () => {
     const dataPromise = fetcher._fetchResourceOverProtocol('https://example.com');
     await expect(dataPromise).rejects.toThrowError(/Loading network resource failed/);
   });
+
+  it('throws on timeout', async () => {
+    connectionStub.sendCommand = createMockSendCommandFn()
+      .mockResponse('Network.enable')
+      .mockResponse('Page.getFrameTree', {frameTree: {frame: {id: 'FRAME'}}})
+      .mockResponse('Network.loadNetworkResource', {
+        resource: {success: false, httpStatusCode: 404},
+      }, 100)
+      .mockResponse('Network.disable');
+
+    const dataPromise = fetcher._fetchResourceOverProtocol('https://example.com', {timeout: 50});
+    await expect(dataPromise).rejects.toThrowError(/Timed out fetching resource/);
+  });
 });
