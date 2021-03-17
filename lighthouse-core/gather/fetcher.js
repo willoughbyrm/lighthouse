@@ -49,7 +49,6 @@ class Fetcher {
     if (this._enabled) return;
 
     this._enabled = true;
-    await this.driver.sendCommand('Network.enable');
     await this.driver.sendCommand('Fetch.enable', {
       patterns: [{requestStage: 'Request'}, {requestStage: 'Response'}],
     });
@@ -62,7 +61,6 @@ class Fetcher {
     this._enabled = false;
     await this.driver.off('Fetch.requestPaused', this._onRequestPaused);
     await this.driver.sendCommand('Fetch.disable');
-    await this.driver.sendCommand('Network.disable');
     this._onRequestPausedHandlers.clear();
   }
 
@@ -111,11 +109,37 @@ class Fetcher {
   }
 
   /**
+   * @param {string} handle
+   * @param {{timeout: number}=} options,
+   * @return {Promise<string>}
+   */
+  async _readIOStream(handle, options = {timeout: 5000}) {
+    const startTime = Date.now();
+
+    let ioResponse;
+    let data = '';
+    while (!ioResponse || !ioResponse.eof) {
+      if (Date.now() - startTime > options.timeout) {
+        throw new Error('Waiting for the end of the IO stream exceeded the allotted time.');
+      }
+      ioResponse = await this.driver.sendCommand('IO.read', {handle});
+
+      const responseData = ioResponse.base64Encoded ?
+        Buffer.from(ioResponse.data, 'base64').toString('utf-8') :
+        ioResponse.data;
+      data = data.concat(responseData);
+    }
+
+    return data;
+  }
+
+  /**
    * @param {string} url
    * @param {{timeout: number}=} options timeout is in ms
    * @return {Promise<string>}
    */
   async _fetchResourceOverProtocol(url, options = {timeout: 500}) {
+    await this.driver.sendCommand('Network.enable');
     const frameTreeResponse = await this.driver.sendCommand('Page.getFrameTree');
     const networkResponse = await this.driver.sendCommand('Network.loadNetworkResource', {
       frameId: frameTreeResponse.frameTree.frame.id,
@@ -125,13 +149,14 @@ class Fetcher {
         includeCredentials: true,
       },
     });
+    await this.driver.sendCommand('Network.disable');
 
     if (!networkResponse.resource.success || !networkResponse.resource.stream) {
       const statusCode = networkResponse.resource.httpStatusCode || '';
       throw new Error(`Loading network resource failed (${statusCode})`);
     }
 
-    return await this.driver.readIOStream(networkResponse.resource.stream, options);
+    return await this._readIOStream(networkResponse.resource.stream, options);
   }
 
   /**

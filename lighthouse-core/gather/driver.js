@@ -631,31 +631,6 @@ class Driver {
   }
 
   /**
-   * @param {string} handle
-   * @param {{timeout: number}=} options,
-   * @return {Promise<string>}
-   */
-  async readIOStream(handle, options = {timeout: 5000}) {
-    const startTime = Date.now();
-
-    let ioResponse;
-    let data = '';
-    while (!ioResponse || !ioResponse.eof) {
-      if (Date.now() - startTime > options.timeout) {
-        throw new Error('Waiting for the end of the IO stream exceeded the allotted time.');
-      }
-      ioResponse = await this.sendCommand('IO.read', {handle});
-
-      const responseData = ioResponse.base64Encoded ?
-        Buffer.from(ioResponse.data, 'base64').toString('utf-8') :
-        ioResponse.data;
-      data = data.concat(responseData);
-    }
-
-    return data;
-  }
-
-  /**
    * Resolves a backend node ID (from a trace event, protocol, etc) to the object ID for use with
    * `Runtime.callFunctionOn`. `undefined` means the node could not be found.
    *

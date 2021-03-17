@@ -125,55 +125,6 @@ describe('.getRequestContent', () => {
   });
 });
 
-describe('.readIOStream', () => {
-  it('reads contents of stream', async () => {
-    connectionStub.sendCommand = createMockSendCommandFn()
-      .mockResponse('IO.read', {data: 'Hello World!', eof: true, base64Encoded: false});
-
-    const data = await driver.readIOStream('1');
-    expect(data).toEqual('Hello World!');
-  });
-
-  it('combines multiple reads', async () => {
-    connectionStub.sendCommand = createMockSendCommandFn()
-      .mockResponse('IO.read', {data: 'Hello ', eof: false, base64Encoded: false})
-      .mockResponse('IO.read', {data: 'World', eof: false, base64Encoded: false})
-      .mockResponse('IO.read', {data: '!', eof: true, base64Encoded: false});
-
-    const data = await driver.readIOStream('1');
-    expect(data).toEqual('Hello World!');
-  });
-
-  it('decodes if base64', async () => {
-    const buffer = Buffer.from('Hello World!').toString('base64');
-    connectionStub.sendCommand = createMockSendCommandFn()
-      .mockResponse('IO.read', {data: buffer, eof: true, base64Encoded: true});
-
-    const data = await driver.readIOStream('1');
-    expect(data).toEqual('Hello World!');
-  });
-
-  it('decodes multiple base64 reads', async () => {
-    const buffer1 = Buffer.from('Hello ').toString('base64');
-    const buffer2 = Buffer.from('World!').toString('base64');
-    connectionStub.sendCommand = createMockSendCommandFn()
-      .mockResponse('IO.read', {data: buffer1, eof: false, base64Encoded: true})
-      .mockResponse('IO.read', {data: buffer2, eof: true, base64Encoded: true});
-
-    const data = await driver.readIOStream('1');
-    expect(data).toEqual('Hello World!');
-  });
-
-  it('throws on timeout', async () => {
-    // @ts-expect-error
-    connectionStub.sendCommand = jest.fn()
-      .mockReturnValue(Promise.resolve({data: 'No stop', eof: false, base64Encoded: false}));
-
-    const dataPromise = driver.readIOStream('1', {timeout: 50});
-    await expect(dataPromise).rejects.toThrowError(/Waiting for the end of the IO stream/);
-  });
-});
-
 describe('.evaluateAsync', () => {
   // The logic here is tested by lighthouse-core/test/gather/driver/execution-context-test.js
   // Just exercise a bit of the plumbing here to ensure we delegate correctly for plugin backcompat.

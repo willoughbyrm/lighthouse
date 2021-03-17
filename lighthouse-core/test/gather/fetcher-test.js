@@ -60,23 +60,73 @@ describe('.fetchResource', () => {
   });
 });
 
+describe('._readIOStream', () => {
+  it('reads contents of stream', async () => {
+    connectionStub.sendCommand = createMockSendCommandFn()
+      .mockResponse('IO.read', {data: 'Hello World!', eof: true, base64Encoded: false});
+
+    const data = await fetcher._readIOStream('1');
+    expect(data).toEqual('Hello World!');
+  });
+
+  it('combines multiple reads', async () => {
+    connectionStub.sendCommand = createMockSendCommandFn()
+      .mockResponse('IO.read', {data: 'Hello ', eof: false, base64Encoded: false})
+      .mockResponse('IO.read', {data: 'World', eof: false, base64Encoded: false})
+      .mockResponse('IO.read', {data: '!', eof: true, base64Encoded: false});
+
+    const data = await fetcher._readIOStream('1');
+    expect(data).toEqual('Hello World!');
+  });
+
+  it('decodes if base64', async () => {
+    const buffer = Buffer.from('Hello World!').toString('base64');
+    connectionStub.sendCommand = createMockSendCommandFn()
+      .mockResponse('IO.read', {data: buffer, eof: true, base64Encoded: true});
+
+    const data = await fetcher._readIOStream('1');
+    expect(data).toEqual('Hello World!');
+  });
+
+  it('decodes multiple base64 reads', async () => {
+    const buffer1 = Buffer.from('Hello ').toString('base64');
+    const buffer2 = Buffer.from('World!').toString('base64');
+    connectionStub.sendCommand = createMockSendCommandFn()
+      .mockResponse('IO.read', {data: buffer1, eof: false, base64Encoded: true})
+      .mockResponse('IO.read', {data: buffer2, eof: true, base64Encoded: true});
+
+    const data = await fetcher._readIOStream('1');
+    expect(data).toEqual('Hello World!');
+  });
+
+  it('throws on timeout', async () => {
+    connectionStub.sendCommand = jest.fn()
+      .mockReturnValue(Promise.resolve({data: 'No stop', eof: false, base64Encoded: false}));
+
+    const dataPromise = fetcher._readIOStream('1', {timeout: 50});
+    await expect(dataPromise).rejects.toThrowError(/Waiting for the end of the IO stream/);
+  });
+});
+
 describe('._fetchResourceOverProtocol', () => {
   /** @type {string} */
   let streamContents;
 
   beforeEach(() => {
     streamContents = 'STREAM CONTENTS';
-    driver.readIOStream = jest.fn().mockImplementation(() => {
+    fetcher._readIOStream = jest.fn().mockImplementation(() => {
       return Promise.resolve(streamContents);
     });
   });
 
   it('fetches a file', async () => {
     connectionStub.sendCommand = createMockSendCommandFn()
+      .mockResponse('Network.enable')
       .mockResponse('Page.getFrameTree', {frameTree: {frame: {id: 'FRAME'}}})
       .mockResponse('Network.loadNetworkResource', {
         resource: {success: true, httpStatusCode: 200, stream: '1'},
-      });
+      })
+      .mockResponse('Network.disable');
 
     const data = await fetcher._fetchResourceOverProtocol('https://example.com');
     expect(data).toEqual(streamContents);
@@ -84,10 +134,12 @@ describe('._fetchResourceOverProtocol', () => {
 
   it('throws when resource could not be fetched', async () => {
     connectionStub.sendCommand = createMockSendCommandFn()
+      .mockResponse('Network.enable')
       .mockResponse('Page.getFrameTree', {frameTree: {frame: {id: 'FRAME'}}})
       .mockResponse('Network.loadNetworkResource', {
         resource: {success: false, httpStatusCode: 404},
-      });
+      })
+      .mockResponse('Network.disable');
 
     const dataPromise = fetcher._fetchResourceOverProtocol('https://example.com');
     await expect(dataPromise).rejects.toThrowError(/Loading network resource failed/);
