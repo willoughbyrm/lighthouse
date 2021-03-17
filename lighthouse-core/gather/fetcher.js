@@ -123,7 +123,6 @@ class Fetcher {
       if (elapsedTime > options.timeout) {
         throw new Error('Waiting for the end of the IO stream exceeded the allotted time.');
       }
-      this.driver.setNextProtocolTimeout(options.timeout - elapsedTime);
       ioResponse = await this.driver.sendCommand('IO.read', {handle});
 
       const responseData = ioResponse.base64Encoded ?
