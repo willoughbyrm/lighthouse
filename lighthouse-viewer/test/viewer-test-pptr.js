@@ -163,10 +163,13 @@ describe('Lighthouse Viewer', () => {
       body: JSON.stringify({error: {message: 'Test error'}}),
     };
 
-    // Sniffs just the request made to the PSI API. All other requests
-    // fall through.
-    // To set the mocked PSI response, assign `psiResponse`.
-    // To read the intercepted request, use `interceptedRequest`.
+    /**
+     * Sniffs just the request made to the PSI API. All other requests
+     * fall through.
+     * To set the mocked PSI response, assign `psiResponse`.
+     * To read the intercepted request, use `interceptedRequest`.
+     * @param {import('puppeteer').HTTPRequest} request
+     */
     function onRequest(request) {
       if (request.url().includes('https://www.googleapis.com')) {
         interceptedRequest = request;
