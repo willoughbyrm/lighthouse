@@ -102,6 +102,8 @@ class ProtocolSession {
    * @return {Promise<LH.CrdpCommands[C]['returnType']>}
    */
   sendCommand(method, ...params) {
+    // @ts-expect-error: protocol typings in currently pinned puppeteer are
+    // often behind what we pin as `devtools-protocol`.
     return this._session.send(method, ...params);
   }
 }

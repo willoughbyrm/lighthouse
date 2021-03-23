@@ -10,7 +10,7 @@
 const path = require('path');
 const fs = require('fs');
 const assert = require('assert').strict;
-const puppeteer = require('../../node_modules/puppeteer/index.js');
+const puppeteer = require('puppeteer');
 
 const {server} = require('../../lighthouse-cli/test/fixtures/static-server.js');
 const portNumber = 10200;
