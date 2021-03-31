@@ -225,15 +225,16 @@ async function flushAllTimersAndMicrotasks(ms = 1000) {
  * shouldn't concern themselves about.
  */
 function makeMocksForGatherRunner() {
-  jest.mock('../lib/stack-collector.js', () => () => Promise.resolve([]));
-  jest.mock('../gather/gatherers/full-page-screenshot.js', () => {
-    return class {
-      constructor() {}
-      afterPass() {
-        return null;
-      }
-    };
-  });
+  jest.mock('../gather/driver/environment.js', () => ({
+    getBenchmarkIndex: () => Promise.resolve(150),
+  }));
+  jest.mock('../gather/gatherers/stacks.js', () => ({collectStacks: () => Promise.resolve([])}));
+  jest.mock('../gather/gatherers/installability-errors.js', () => ({
+    getInstallabilityErrors: async () => ({errors: []}),
+  }));
+  jest.mock('../gather/gatherers/web-app-manifest.js', () => ({
+    getWebAppManifest: async () => null,
+  }));
 }
 
 module.exports = {

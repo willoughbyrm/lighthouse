@@ -5,7 +5,26 @@
  */
 
 import _Crdp from 'devtools-protocol/types/protocol';
-import _CrdpMappings from 'devtools-protocol/types/protocol-mapping'
+import _CrdpMappings from 'devtools-protocol/types/protocol-mapping';
+import {ParseSelectorToTagNames} from 'typed-query-selector/parser';
+
+/** Merge properties of the types in union `T`. Where properties overlap, property types becomes the union of the two (or more) possible types. */
+type MergeTypes<T> = {
+  [K in (T extends unknown ? keyof T : never)]: T extends Record<K, infer U> ? U : never;
+};
+
+// Helper types for strict querySelector/querySelectorAll that includes the overlap
+// between HTML and SVG node names (<a>, <script>, etc).
+// see https://github.com/GoogleChrome/lighthouse/issues/12011
+type HtmlAndSvgElementTagNameMap = MergeTypes<HTMLElementTagNameMap|SVGElementTagNameMap> & {
+  // Fall back to Element (base of HTMLElement and SVGElement) if no specific tag name matches.
+  [id: string]: Element;
+};
+type QuerySelectorParse<I extends string> = ParseSelectorToTagNames<I> extends infer TagNames ?
+  TagNames extends Array<string> ?
+    HtmlAndSvgElementTagNameMap[TagNames[number]] :
+    Element: // Fall back for queries typed-query-selector fails to parse, e.g. `'[alt], [aria-label]'`.
+  never;
 
 declare global {
   // Augment Intl to include
@@ -64,6 +83,36 @@ declare global {
   type FirstParamType<T extends (arg1: any, ...args: any[]) => any> =
     T extends (arg1: infer P, ...args: any[]) => any ? P : never;
 
+  type FlattenedPromise<A> = Promise<A extends Promise<infer X> ? X : A>;
+
+  /**
+   * Split string `S` on delimiter `D`.
+   * From https://github.com/microsoft/TypeScript/pull/40336#issue-476562046
+   */
+  type Split<S extends string, D extends string> =
+    string extends S ? string[] :
+    S extends '' ? [] :
+    S extends `${infer T}${D}${infer U}` ? [T, ...Split<U, D>] :
+    [S];
+
+  /**
+  * Join an array of strings using camelCase capitalization rules.
+  */
+  type StringsToCamelCase<T extends unknown[]> =
+    T extends [] ? '' :
+    T extends [string, ...infer U] ? `${T[0]}${Capitalize<StringsToCamelCase<U>>}` :
+    string;
+
+  /**
+  * If `S` is a kebab-style string `S`, convert to camelCase.
+  */
+  type KebabToCamelCase<S> = S extends string ? StringsToCamelCase<Split<S, '-'>> : S;
+
+  /** Returns T with any kebab-style property names rewritten as camelCase. */
+  type CamelCasify<T> = {
+    [K in keyof T as KebabToCamelCase<K>]: T[K];
+  }
+
   module LH {
     // re-export useful type modules under global LH module.
     export import Crdp = _Crdp;
@@ -97,6 +146,19 @@ declare global {
 
     export type OutputMode = 'json' | 'html' | 'csv';
 
+    export type ScreenEmulationSettings = {
+      /** Overriding width value in pixels (minimum 0, maximum 10000000). 0 disables the override. */
+      width: number;
+      /** Overriding height value in pixels (minimum 0, maximum 10000000). 0 disables the override. */
+      height: number;
+      /** Overriding device scale factor value. 0 disables the override. */
+      deviceScaleFactor: number;
+      /** Whether to emulate mobile device. This includes viewport meta tag, overlay scrollbars, text autosizing and more. */
+      mobile: boolean;
+      /** Whether screen emulation is disabled. If true, the other emulation settings are ignored. */
+      disabled: boolean;
+    };
+
     /**
      * Options that are found in both the flags used by the Lighthouse module
      * interface and the Config's `settings` object.
@@ -120,10 +182,14 @@ declare global {
       gatherMode?: boolean | string;
       /** Flag indicating that the browser storage should not be reset for the audit. */
       disableStorageReset?: boolean;
-      /** How emulation (useragent, device screen metrics, touch) should be applied. `none` indicates Lighthouse should leave the host browser as-is. */
-      emulatedFormFactor?: 'mobile'|'desktop'|'none';
-      /** Dangerous setting only to be used by Lighthouse team. Disables the device metrics and touch emulation that emulatedFormFactor defines. Details in emulation.js */
-      internalDisableDeviceScreenEmulation?: boolean
+
+      /** How Lighthouse should interpret this run in regards to scoring performance metrics and skipping mobile-only tests in desktop. Must be set even if throttling/emulation is being applied outside of Lighthouse. */
+      formFactor?: 'mobile'|'desktop';
+      /** Screen emulation properties (width, height, dpr, mobile viewport) to apply or an object of `{disabled: true}` if Lighthouse should avoid applying screen emulation. If either emulation is applied outside of Lighthouse, or it's being run on a mobile device, it typically should be set to disabled. For desktop, we recommend applying consistent desktop screen emulation. */
+      screenEmulation?: Partial<ScreenEmulationSettings>;
+      /** User Agent string to apply, `false` to not change the host's UA string, or `true` to use Lighthouse's default UA string. */
+      emulatedUserAgent?: string | boolean;
+
       /** The method used to throttle the network. */
       throttlingMethod?: 'devtools'|'simulate'|'provided';
       /** The throttling config settings. */
@@ -170,7 +236,7 @@ declare global {
       chromeIgnoreDefaultFlags: boolean;
       chromeFlags: string | string[];
       /** Output path for the generated results. */
-      outputPath: string;
+      outputPath?: string;
       /** Flag to save the trace contents and screenshots to disk. */
       saveAssets: boolean;
       /** Flag to open the report immediately. */
@@ -182,7 +248,7 @@ declare global {
       /** Flag to print a list of all required trace categories. */
       listTraceCategories: boolean;
       /** A preset audit of selected audit categories to run. */
-      preset?: 'experimental'|'perf';
+      preset?: 'experimental'|'perf'|'desktop';
       /** A flag to enable logLevel 'verbose'. */
       verbose: boolean;
       /** A flag to enable logLevel 'silent'. */
@@ -290,10 +356,12 @@ declare global {
             old_rect?: Array<number>,
             new_rect?: Array<number>,
           }>;
-          score?: number,
+          score?: number;
+          weighted_score_delta?: number;
           had_recent_input?: boolean;
           compositeFailed?: number;
           unsupportedProperties?: string[];
+          size?: number;
         };
         frame?: string;
         name?: string;
@@ -324,8 +392,27 @@ declare global {
   }
 
   interface Window {
+    // Cached native functions/objects for use in case the page overwrites them.
+    // See: `driver.cacheNatives`.
+    __nativePromise: PromiseConstructor;
+    __nativeURL: URL;
+    __ElementMatches: Element['matches'];
+    __perfNow: Performance['now'];
+
+    /** Used for monitoring long tasks in the test page. */
+    ____lastLongTask?: number;
+
     /** Used by FullPageScreenshot gatherer. */
-    __lighthouseNodesDontTouchOrAllVarianceGoesAway: Map<HTMLElement, string>;
+    __lighthouseNodesDontTouchOrAllVarianceGoesAway: Map<Element, string>;
     __lighthouseExecutionContextId?: number;
+
+    // Not defined in tsc yet: https://github.com/microsoft/TypeScript/issues/40807
+    requestIdleCallback(callback: (deadline: {didTimeout: boolean, timeRemaining: () => DOMHighResTimeStamp}) => void, options?: {timeout: number}): number;
+  }
+
+  // Stricter querySelector/querySelectorAll using typed-query-selector.
+  interface ParentNode {
+    querySelector<S extends string>(selector: S): QuerySelectorParse<S>;
+    querySelectorAll<S extends string>(selector: S): NodeListOf<QuerySelectorParse<S>>;
   }
 }

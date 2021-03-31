@@ -6,7 +6,7 @@
   TestRunner.addResult('Tests that audits panel renders View Trace button.\n');
   await TestRunner.navigatePromise('resources/lighthouse-basic.html');
 
-  await TestRunner.loadModule('lighthouse_test_runner');
+  await TestRunner.loadTestModule('lighthouse_test_runner');
   await TestRunner.showPanel('lighthouse');
 
   const containerElement = LighthouseTestRunner.getContainerElement();
@@ -33,7 +33,7 @@
   });
   const viewTraceButton = LighthouseTestRunner.getResultsElement().querySelector('.view-trace');
   TestRunner.addResult(`\nView Trace Button Text: "${viewTraceButton.textContent}"`);
-  TestRunner.addResult(`View Trace Button Title: "${viewTraceButton.title}"`);
+  TestRunner.addResult(`View Trace Button Title: "${UI.Tooltip.getContent(viewTraceButton)}"`);
   viewTraceButton.click();
   const viewShown = await waitForShowView;
   TestRunner.addResult(`\nShowing view: ${viewShown}`);

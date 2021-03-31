@@ -28,7 +28,7 @@ In general, the above release dates are when new versions will be available in n
 
 Release manager is appointed, according to the list below. However, if the appointed manager is absent, the next engineer in line in the list would own it.
 
-    @cjamcl, @adamraine, @Beytoven
+    @cjamcl, @adamraine
 
 Release manager follows the below _Release Process_.
 
@@ -92,7 +92,7 @@ Now that the integrations are confirmed to work, go back to `lighthouse` folder.
 bash ./lighthouse-core/scripts/release/prepare-commit.sh x.x.x
 
 # Rebaseline DevTools tests one more time (only version number should change).
-yarn update:test-devtools
+yarn build-devtools && yarn update:test-devtools
 ```
 
 1. Edit changelog.md before opening the PR
