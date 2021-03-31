@@ -320,7 +320,7 @@ class PerformanceCategoryRenderer extends CategoryRenderer {
     // thx https://codepen.io/surjithctly/pen/weEJvX
     const filterBarEl = this.dom.createElement('div', 'lh-filterbar');
     const filterBarSummaryEl = this.dom.createChildOf(filterBarEl, 'span', 'lh-filterbar__summary');
-    filterBarSummaryEl.textContent = 'Filter by metric impact: ';
+    filterBarSummaryEl.textContent = 'Filter by relevant impact: ';
     const labelSelectors = [];
     const auditSelectors = [];
     for (const metric of filterableMetrics) {
