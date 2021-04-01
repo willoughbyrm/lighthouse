@@ -122,7 +122,7 @@ const UIStrings = {
 const str_ = i18n.createMessageInstanceIdFn(__filename, UIStrings);
 
 /** @type {LH.Config.Json} */
-const defaultConfig = {
+let defaultConfig = {
   settings: constants.defaultSettings,
   passes: [{
     passName: 'defaultPass',
@@ -416,15 +416,28 @@ const defaultConfig = {
       title: str_(UIStrings.bestPracticesGeneralGroupTitle),
     },
   },
+};
+
+const fcpRelevantAudits = [
+  'server-response-time', 'render-blocking-resources', 'critical-request-chains',
+  'redirects', 'total-byte-weight', 'font-display', 'unminified-javascript', 'unminified-css',
+  'unused-css-rules', 'unused-javascript', 'uses-text-compression',
+  'uses-rel-preconnect', 'uses-rel-preload'
+  // todo add some more?
+]
+
+defaultConfig = {
+  ...defaultConfig,
   categories: {
     'performance': {
       title: str_(UIStrings.performanceCategoryTitle),
       auditRefs: [
-        {id: 'first-contentful-paint', weight: 15, group: 'metrics'},
+        {id: 'first-contentful-paint', weight: 15, group: 'metrics', acronym: 'FCP', relevantAudits: fcpRelevantAudits},
         {id: 'speed-index', weight: 15, group: 'metrics'},
         {id: 'largest-contentful-paint', weight: 25, group: 'metrics', acronym: 'LCP', relevantAudits: [
+          ...fcpRelevantAudits,
           'largest-contentful-paint-element', 'preload-lcp-image',
-          'server-response-time', 'render-blocking-resources', 'critical-request-chains',
+          // todo add some more?
         ]},
         {id: 'interactive', weight: 15, group: 'metrics'},
         {id: 'total-blocking-time', weight: 25, group: 'metrics', acronym: 'TBT', relevantAudits: [
