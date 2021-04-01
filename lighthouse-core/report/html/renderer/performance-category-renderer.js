@@ -320,7 +320,7 @@ class PerformanceCategoryRenderer extends CategoryRenderer {
     // thx https://codepen.io/surjithctly/pen/weEJvX
     const filterBarEl = this.dom.createElement('div', 'lh-filterbar');
     const filterBarSummaryEl = this.dom.createChildOf(filterBarEl, 'span', 'lh-filterbar__summary');
-    filterBarSummaryEl.textContent = 'Highlight relevant audits: ';
+    filterBarSummaryEl.textContent = 'Filter by relevant impact: ';
     const labelSelectors = [];
     const auditSelectors = [];
     for (const metric of filterableMetrics) {
@@ -357,8 +357,14 @@ class PerformanceCategoryRenderer extends CategoryRenderer {
         color: var(--color-white);
       }
 
+      .lh-filterbar__radio:checked:not(#metric-All) ~ .lh-audit-group--diagnostics .lh-audit,
+      .lh-filterbar__radio:checked:not(#metric-All) ~ .lh-audit-group--load-opportunities .lh-audit,
+      .lh-filterbar__radio:checked:not(#metric-All) ~ .lh-audit-group.lh-clump--passed .lh-audit {
+        display: none;
+      }
+
       ${auditSelectors.join(',\n')} {
-        background-color: var( --toplevel-warning-background-color);
+        display: block;
       }
       /*# sourceURL=filterbar.css */
     `;
