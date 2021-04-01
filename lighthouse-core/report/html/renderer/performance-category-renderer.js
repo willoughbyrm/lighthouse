@@ -335,7 +335,7 @@ class PerformanceCategoryRenderer extends CategoryRenderer {
       const labelEl = this.dom.createChildOf(filterBarEl, 'label', 'lh-filterbar__label', {
         for: elemId,
       });
-      labelEl.textContent = metric.acronym;
+      labelEl.textContent = metric.acronym || metric.id;
       if (metric.acronym === 'All') {
         radioEl.checked = true;
       }
