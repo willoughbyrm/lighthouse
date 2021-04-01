@@ -419,12 +419,11 @@ let defaultConfig = {
 };
 
 const fcpRelevantAudits = [
-  'server-response-time', 'render-blocking-resources', 'critical-request-chains',
-  'redirects', 'total-byte-weight', 'font-display', 'unminified-javascript', 'unminified-css',
-  'unused-css-rules', 'unused-javascript', 'uses-text-compression',
-  'uses-rel-preconnect', 'uses-rel-preload'
-  // todo add some more?
-]
+  // Roughly in order of impact
+  'server-response-time', 'render-blocking-resources', 'redirects', 'critical-request-chains',
+  'uses-text-compression', 'uses-rel-preconnect', 'uses-rel-preload', 'font-display', 'unminified-javascript', 'unminified-css',
+  'unused-css-rules',
+];
 
 defaultConfig = {
   ...defaultConfig,
@@ -437,18 +436,20 @@ defaultConfig = {
         {id: 'largest-contentful-paint', weight: 25, group: 'metrics', acronym: 'LCP', relevantAudits: [
           ...fcpRelevantAudits,
           'largest-contentful-paint-element', 'preload-lcp-image',
-          // todo add some more?
+          'unused-javascript', 'efficient-animated-content', 'total-byte-weight',
         ]},
         {id: 'interactive', weight: 15, group: 'metrics'},
         {id: 'total-blocking-time', weight: 25, group: 'metrics', acronym: 'TBT', relevantAudits: [
-          'long-tasks', 'third-party-summary',
+          'long-tasks', 'third-party-summary', 'third-party-facades',
           'bootup-time', 'mainthread-work-breakdown',
+          'dom-size', 'duplicated-javascript', 'legacy-javascript',
         ]},
         {id: 'cumulative-layout-shift', weight: 5, group: 'metrics', acronym: 'CLS', relevantAudits: [
           'layout-shift-elements', 'non-composited-animations', 'unsized-images',
-          'preload-fonts', // actually in BP, rather than perf
+          // 'preload-fonts', // actually in BP, rather than perf
         ]},
-        // intentionally left out of metrics group so they won't be displayed
+
+        // These are our "invisible" metrics. Not displayed, but still in the LHR
         {id: 'first-cpu-idle', weight: 0},
         {id: 'max-potential-fid', weight: 0},
         {id: 'first-meaningful-paint', weight: 0},
