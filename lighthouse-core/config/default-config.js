@@ -418,6 +418,7 @@ let defaultConfig = {
   },
 };
 
+// go/lh-audit-metric-mapping
 const fcpRelevantAudits = [
   // Roughly in order of impact
   'server-response-time', 'render-blocking-resources', 'redirects', 'critical-request-chains',

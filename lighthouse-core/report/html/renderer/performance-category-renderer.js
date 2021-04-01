@@ -311,16 +311,16 @@ class PerformanceCategoryRenderer extends CategoryRenderer {
   }
 
   /**
-   * Render the control to filter the opps & diags by metric
+   * Render the control to filter the audits by metric. The filtering is done at runtime by CSS only
    * @param {LH.ReportResult.AuditRef[]} filterableMetrics
    * @param {HTMLDivElement} element
    */
   renderMetricAuditFilter(filterableMetrics, element) {
-    filterableMetrics.unshift({ acronym: 'All' });
+    filterableMetrics.unshift(/** @type {LH.ReportResult.AuditRef} */ ({acronym: 'All'}));
     // thx https://codepen.io/surjithctly/pen/weEJvX
     const filterBarEl = this.dom.createElement('div', 'lh-filterbar');
     const filterBarSummaryEl = this.dom.createChildOf(filterBarEl, 'span', 'lh-filterbar__summary');
-    filterBarSummaryEl.textContent = 'Filter by relevant impact: ';
+    filterBarSummaryEl.textContent = 'Filter to relevant audits: ';
     const labelSelectors = [];
     const auditSelectors = [];
     for (const metric of filterableMetrics) {
@@ -339,30 +339,31 @@ class PerformanceCategoryRenderer extends CategoryRenderer {
       if (metric.acronym === 'All') {
         radioEl.checked = true;
       }
-      // Dynamically write some CSS, so the runtime filtering is CSS-only
-      labelSelectors.push(`.lh-filterbar__radio#${elemId}:checked ~ .lh-filterbar > .lh-filterbar__label[for="${elemId}"]`);
+      // Dynamically write some CSS, for the CSS-only filtering
+      labelSelectors.push(`.lh-filterbar__radio#${elemId}:checked ~ .lh-filterbar > .lh-filterbar__label[for="${elemId}"]`); // eslint-disable-line max-len
       if (metric.relevantAudits) {
         /* Generate some CSS selectors like this:
-          #metric-CLS:checked ~ .lh-audit-group > #layout-shift-elements,
-          #metric-CLS:checked ~ .lh-audit-group > #non-composited-animations,
-          #metric-CLS:checked ~ .lh-audit-group > #unsized-images
+            #metric-CLS:checked ~ .lh-audit-group > #layout-shift-elements,
+            #metric-CLS:checked ~ .lh-audit-group > #non-composited-animations,
+            #metric-CLS:checked ~ .lh-audit-group > #unsized-images
         */
-        auditSelectors.push(metric.relevantAudits.map(auditId => `#${elemId}:checked ~ .lh-audit-group > #${auditId}`).join(',\n'));
+        auditSelectors.push(metric.relevantAudits.map(auditId => `#${elemId}:checked ~ .lh-audit-group > #${auditId}`).join(',\n')); // eslint-disable-line max-len
       }
     }
 
     const styleEl = this.dom.createChildOf(filterBarEl, 'style');
-    styleEl.textContent = `${labelSelectors.join(',\n')} {
+    styleEl.textContent = `
+      ${labelSelectors.join(',\n')} {
         background: var(--color-blue-A700);
         color: var(--color-white);
       }
-
-      .lh-filterbar__radio:checked:not(#metric-All) ~ .lh-audit-group--diagnostics .lh-audit,
-      .lh-filterbar__radio:checked:not(#metric-All) ~ .lh-audit-group--load-opportunities .lh-audit,
-      .lh-filterbar__radio:checked:not(#metric-All) ~ .lh-audit-group.lh-clump--passed .lh-audit {
+      /* If selecting non-All, hide all audits (and also the group header/description… */
+      .lh-filterbar__radio:checked:not(#metric-All) ~ .lh-audit-group .lh-audit,
+      .lh-filterbar__radio:checked:not(#metric-All) ~ .lh-audit-group .lh-audit-group__description,
+      .lh-filterbar__radio:checked:not(#metric-All) ~ .lh-audit-group .lh-audit-group__itemcount {
         display: none;
       }
-
+      /* …And then display:block the relevant ones */
       ${auditSelectors.join(',\n')} {
         display: block;
       }
