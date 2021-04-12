@@ -626,7 +626,18 @@ class GatherRunner {
    */
   static finalizeBaseArtifacts(baseArtifacts) {
     // Take only unique LighthouseRunWarnings.
-    baseArtifacts.LighthouseRunWarnings = Array.from(new Set(baseArtifacts.LighthouseRunWarnings));
+
+    const uniqueWarnings = new Set();
+    const LighthouseRunWarnings = [];
+    for (const warning of baseArtifacts.LighthouseRunWarnings) {
+      // each entry in baseArtifacts.LighthouseRunWarnings can be a string or a LH.IcuMessage.
+      const stringifiedWarning = JSON.stringify(warning);
+      if (!uniqueWarnings.has(stringifiedWarning)) {
+        LighthouseRunWarnings.push(warning);
+        uniqueWarnings.add(stringifiedWarning);
+      }
+    }
+    baseArtifacts.LighthouseRunWarnings = LighthouseRunWarnings;
 
     // Take the timing entries we've gathered so far.
     baseArtifacts.Timing = log.getTimeEntries();
