@@ -201,7 +201,7 @@ describe('Lighthouse Viewer', () => {
       await viewerPage.goto(url);
 
       // Wait for report to render.
-      await viewerPage.waitForSelector('.lh-metrics-container');
+      await viewerPage.waitForSelector('.lh-metrics-container', {timeout: 5000});
 
       const interceptedUrl = new URL(interceptedRequest.url());
       expect(interceptedUrl.origin + interceptedUrl.pathname)
