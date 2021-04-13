@@ -1463,8 +1463,13 @@ describe('GatherRunner', function() {
       class WarningGatherer extends Gatherer {
         /** @param {LH.Gatherer.PassContext} passContext */
         afterPass(passContext) {
-          passContext.LighthouseRunWarnings.push(...runWarnings, ...runWarnings);
-          assert.strictEqual(passContext.LighthouseRunWarnings.length, runWarnings.length * 2);
+          passContext.LighthouseRunWarnings.push(
+            ...runWarnings,
+            ...runWarnings,
+            // adding one of the warnings with keys in different order
+            {formattedDefault: 'warning3', i18nId: 'LH.IcuMessage0'}
+          );
+          assert.strictEqual(passContext.LighthouseRunWarnings.length, runWarnings.length * 2 + 1);
 
           return '';
         }

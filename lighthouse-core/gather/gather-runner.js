@@ -5,6 +5,7 @@
  */
 'use strict';
 
+const isDeepEqual = require('lodash.isequal');
 const log = require('lighthouse-logger');
 const LHError = require('../lib/lh-error.js');
 const NetworkAnalyzer = require('../lib/dependency-graph/simulator/network-analyzer.js');
@@ -17,6 +18,7 @@ const WebAppManifest = require('./gatherers/web-app-manifest.js');
 const InstallabilityErrors = require('./gatherers/installability-errors.js');
 const NetworkUserAgent = require('./gatherers/network-user-agent.js');
 const Stacks = require('./gatherers/stacks.js');
+
 
 const UIStrings = {
   /**
@@ -627,17 +629,16 @@ class GatherRunner {
   static finalizeBaseArtifacts(baseArtifacts) {
     // Take only unique LighthouseRunWarnings.
 
-    const uniqueWarnings = new Set();
-    const LighthouseRunWarnings = [];
+    /** @type {(string | LH.IcuMessage)[]} */
+    const lighthouseRunWarnings = [];
     for (const warning of baseArtifacts.LighthouseRunWarnings) {
       // each entry in baseArtifacts.LighthouseRunWarnings can be a string or a LH.IcuMessage.
-      const stringifiedWarning = JSON.stringify(warning);
-      if (!uniqueWarnings.has(stringifiedWarning)) {
-        LighthouseRunWarnings.push(warning);
-        uniqueWarnings.add(stringifiedWarning);
+      if (!lighthouseRunWarnings.some(existing => isDeepEqual(warning, existing))) {
+        lighthouseRunWarnings.push(warning);
       }
     }
-    baseArtifacts.LighthouseRunWarnings = LighthouseRunWarnings;
+
+    baseArtifacts.LighthouseRunWarnings = lighthouseRunWarnings;
 
     // Take the timing entries we've gathered so far.
     baseArtifacts.Timing = log.getTimeEntries();
