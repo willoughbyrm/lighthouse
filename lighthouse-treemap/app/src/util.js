@@ -32,6 +32,24 @@ class TreemapUtil {
   }
 
   /**
+   * @param {LH.Treemap.Node} node
+   * @param {string[]} path
+   */
+  static findNode(node, path) {
+    let result = node;
+    for (const pathComponent of path) {
+      if (!result.children) return;
+
+      const next = result.children.find(child => child.name === pathComponent);
+      if (!next) return;
+
+      result = next;
+    }
+
+    return result;
+  }
+
+  /**
    * @param {string[]} path1
    * @param {string[]} path2
    */

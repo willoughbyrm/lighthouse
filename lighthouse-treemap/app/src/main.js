@@ -77,6 +77,60 @@ class TreemapViewer {
 
     const bytes = this.wrapNodesInNewRootNode(this.depthOneNodesByGroup.scripts).resourceBytes;
     TreemapUtil.find('.lh-header--size').textContent = TreemapUtil.formatBytes(bytes);
+
+    this.createBundleSelector();
+  }
+
+  createBundleSelector() {
+    const bundleSelectorEl = TreemapUtil.find('select.bundle-selector');
+    bundleSelectorEl.innerHTML = ''; // Clear just in case document was saved with Ctrl+S.
+
+    /** @type {LH.Treemap.Selector[]} */
+    const selectors = [];
+
+    /**
+     * @param {LH.Treemap.Selector} selector
+     * @param {string} text
+     */
+    function makeOption(selector, text) {
+      if (!['depthOneNode', 'group'].includes(selector.type)) {
+        throw new Error('unexpected selector type ' + selector.type);
+      }
+
+      const optionEl = TreemapUtil.createChildOf(bundleSelectorEl, 'option');
+      optionEl.value = String(selectors.length);
+      selectors.push(selector);
+      optionEl.innerText = text;
+    }
+
+    function onChange() {
+      const index = Number(bundleSelectorEl.value);
+      const selector = selectors[index];
+      treemapViewer.setViewMode({
+        ...treemapViewer.currentViewMode,
+        selector,
+      });
+    }
+
+    for (const [group, depthOneNodes] of Object.entries(this.depthOneNodesByGroup)) {
+      makeOption({type: 'group', value: group}, `All ${group}`);
+      for (const depthOneNode of depthOneNodes) {
+        // Only add bundles.
+        if (!depthOneNode.children) continue;
+
+        // const title = (aggregateNodes ? '- ' : '') + TreemapUtil.elide(rootNode.name, 80);
+        const title = TreemapUtil.elide(depthOneNode.name, 80);
+        makeOption({type: 'depthOneNode', value: depthOneNode.name}, title);
+      }
+    }
+
+    const currentSelectorIndex = selectors.findIndex(s => {
+      return this.currentViewMode.selector &&
+        s.type === this.currentViewMode.selector.type &&
+        s.value === this.currentViewMode.selector.value;
+    });
+    bundleSelectorEl.value = String(currentSelectorIndex !== -1 ? currentSelectorIndex : 0);
+    bundleSelectorEl.addEventListener('change', onChange);
   }
 
   initListeners() {
@@ -171,6 +225,40 @@ class TreemapViewer {
     if (unusedBytesViewMode) viewModes.push(unusedBytesViewMode);
 
     return viewModes;
+  }
+
+  /**
+   * @param {LH.Treemap.ViewMode} viewMode
+   */
+  setViewMode(viewMode) {
+    this.currentViewMode = viewMode;
+
+    const selector = this.currentViewMode.selector || {type: 'group', value: 'scripts'};
+
+    if (selector.type === 'group') {
+      this.currentTreemapRoot =
+        this.wrapNodesInNewRootNode(this.depthOneNodesByGroup[selector.value]);
+    } else if (selector.type === 'depthOneNode') {
+      let node;
+      outer: for (const depthOneNodes of Object.values(this.depthOneNodesByGroup)) {
+        for (const depthOneNode of depthOneNodes) {
+          if (depthOneNode.name === selector.value) {
+            node = depthOneNode;
+            break outer;
+          }
+        }
+      }
+
+      if (!node) {
+        throw new Error('unknown depthOneNode: ' + selector.value);
+      }
+
+      this.currentTreemapRoot = node;
+    } else {
+      throw new Error('unknown selector: ' + JSON.stringify(selector));
+    }
+
+    this.render();
   }
 
   render() {
@@ -292,8 +380,10 @@ function renderViewModeButtons(viewModes) {
     });
 
     inputEl.addEventListener('click', () => {
-      treemapViewer.currentViewMode = viewMode;
-      treemapViewer.render();
+      treemapViewer.setViewMode({
+        ...viewMode,
+        selector: treemapViewer.currentViewMode.selector,
+      });
     });
   }
 

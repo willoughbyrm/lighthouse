@@ -12,8 +12,14 @@ declare global {
 
     type NodePath = string[];
 
+    interface Selector {
+      type: 'depthOneNode' | 'group';
+      value: string;
+    }
+
     interface ViewMode {
       id: 'all' | 'unused-bytes';
+      selector?: Selector;
       label: string;
       subLabel: string;
       partitionBy?: 'resourceBytes' | 'unusedBytes';
