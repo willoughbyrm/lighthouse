@@ -118,9 +118,7 @@ class TreemapViewer {
         // Only add bundles.
         if (!depthOneNode.children) continue;
 
-        // const title = (aggregateNodes ? '- ' : '') + TreemapUtil.elide(rootNode.name, 80);
-        const title = TreemapUtil.elide(depthOneNode.name, 80);
-        makeOption({type: 'depthOneNode', value: depthOneNode.name}, title);
+        makeOption({type: 'depthOneNode', value: depthOneNode.name}, depthOneNode.name);
       }
     }
 
