@@ -137,10 +137,6 @@ class TreemapViewer {
   }
 
   initListeners() {
-    // window.addEventListener('resize', () => {
-    //   this.resize();
-    // });
-
     const treemapEl = TreemapUtil.find('.lh-treemap');
 
     const resizeObserver = new ResizeObserver(() => this.resize());
@@ -303,11 +299,8 @@ class TreemapViewer {
 
     /** @type {Array<{name: string, bytes: {resource: number, unused?: number}}>} */
     const data = [];
-    let maxSize = 0;
     TreemapUtil.walk(this.currentTreemapRoot, (node, path) => {
       if (node.children) return;
-
-      if (node.resourceBytes) maxSize = Math.max(maxSize, node.resourceBytes);
 
       // Elide the first path component, which is common to all nodes.
       let name;
@@ -338,6 +331,7 @@ class TreemapViewer {
      */
     const bytesSorter = (a, b) => a.resource - b.resource;
 
+    const maxSize = this.currentTreemapRoot.resourceBytes;
     this.table = new Tabulator(gridEl, {
       data,
       height: '100%',
@@ -353,6 +347,8 @@ class TreemapViewer {
         {title: 'Name', field: 'name'},
         {title: 'Size / Unused', field: 'bytes', sorter: bytesSorter, formatter: cell => {
           const value = cell.getValue();
+          if (!value.unused) return TreemapUtil.formatBytes(value.resource);
+
           // eslint-disable-next-line max-len
           return `${TreemapUtil.formatBytes(value.resource)} / ${TreemapUtil.formatBytes(value.unused)}`;
         }},
@@ -360,6 +356,8 @@ class TreemapViewer {
           const value = cell.getValue();
 
           const el = TreemapUtil.createElement('div', 'lh-coverage-bar');
+          if (!value.unused) return el;
+
           el.style.setProperty('--max', String(maxSize));
           el.style.setProperty('--used', String(value.resource - value.unused));
           el.style.setProperty('--unused', String(value.unused));
@@ -376,6 +374,8 @@ class TreemapViewer {
   toggleTable() {
     const mainEl = TreemapUtil.find('main');
     mainEl.classList.toggle('lh-main--show-table');
+    const buttonEl = TreemapUtil.find('.lh-button--toggle-table');
+    buttonEl.classList.toggle('lh-button--active');
   }
 
   resize() {
