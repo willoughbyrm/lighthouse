@@ -339,7 +339,7 @@ class TreemapViewer {
       tooltips: true,
       addRowPos: 'top',
       history: true,
-      resizableRows: true,
+      resizableColumns: true,
       initialSort: [
         {column: 'bytes', dir: 'desc'},
       ],
