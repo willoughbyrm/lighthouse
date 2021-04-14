@@ -17,10 +17,12 @@ async function run() {
     appDir: `${__dirname}/../lighthouse-treemap/app`,
     html: {path: 'index.html'},
     stylesheets: [
+      fs.readFileSync(require.resolve('tabulator-tables/dist/css/tabulator.min.css'), 'utf8'),
       {path: 'styles/*'},
     ],
     javascripts: [
       fs.readFileSync(require.resolve('webtreemap-cdt'), 'utf8'),
+      fs.readFileSync(require.resolve('tabulator-tables'), 'utf8'),
       {path: 'src/*'},
     ],
     assets: [

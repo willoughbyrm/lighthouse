@@ -7,7 +7,7 @@
 
 /* eslint-env browser */
 
-/* globals webtreemap TreemapUtil */
+/* globals webtreemap TreemapUtil Tabulator */
 
 const UNUSED_BYTES_IGNORE_THRESHOLD = 20 * 1024;
 const UNUSED_BYTES_IGNORE_BUNDLE_SOURCE_RATIO = 0.5;
@@ -62,11 +62,13 @@ class TreemapViewer {
     TreemapUtil.walk(this.currentTreemapRoot, (node, path) => this.nodeToPathMap.set(node, path));
 
     this.viewModes = this.createViewModes();
-    this.currentViewMode = this.viewModes[0];
-
     renderViewModeButtons(this.viewModes);
+
+    /** @type {LH.Treemap.ViewMode} */
+    this.currentViewMode; // eslint-disable-line no-unused-expressions
+    this.setViewMode(this.viewModes[0]);
+
     this.createHeader();
-    this.render();
     this.initListeners();
   }
 
@@ -79,6 +81,9 @@ class TreemapViewer {
     TreemapUtil.find('.lh-header--size').textContent = TreemapUtil.formatBytes(bytes);
 
     this.createBundleSelector();
+
+    const toggleTableBtn = TreemapUtil.find('.lh-button--toggle-table');
+    toggleTableBtn.addEventListener('click', () => treemapViewer.toggleTable());
   }
 
   createBundleSelector() {
@@ -132,11 +137,15 @@ class TreemapViewer {
   }
 
   initListeners() {
-    window.addEventListener('resize', () => {
-      this.resize();
-    });
+    // window.addEventListener('resize', () => {
+    //   this.resize();
+    // });
 
     const treemapEl = TreemapUtil.find('.lh-treemap');
+
+    const resizeObserver = new ResizeObserver(() => this.resize());
+    resizeObserver.observe(treemapEl);
+
     treemapEl.addEventListener('click', (e) => {
       if (!(e.target instanceof HTMLElement)) return;
       const nodeEl = e.target.closest('.webtreemap-node');
@@ -257,6 +266,7 @@ class TreemapViewer {
     }
 
     this.render();
+    this.createTable();
   }
 
   render() {
@@ -285,6 +295,87 @@ class TreemapViewer {
     TreemapUtil.find('.webtreemap-node').classList.add('webtreemap-node--root');
 
     this.updateColors();
+  }
+
+  createTable() {
+    const tableEl = TreemapUtil.find('.lh-table');
+    tableEl.innerHTML = '';
+
+    /** @type {Array<{name: string, bytes: {resource: number, unused?: number}}>} */
+    const data = [];
+    let maxSize = 0;
+    TreemapUtil.walk(this.currentTreemapRoot, (node, path) => {
+      if (node.children) return;
+
+      if (node.resourceBytes) maxSize = Math.max(maxSize, node.resourceBytes);
+
+      // Elide the first path component, which is common to all nodes.
+      let name;
+      if (path[0] === this.currentTreemapRoot.name) {
+        name = path.slice(1).join('/');
+      } else {
+        name = path.join('/');
+      }
+
+      // Elide the document URL.
+      if (name.startsWith(this.currentTreemapRoot.name)) {
+        name = name.replace(this.currentTreemapRoot.name, '//');
+      }
+
+      data.push({
+        name,
+        bytes: {resource: node.resourceBytes, unused: node.unusedBytes},
+      });
+    });
+
+    const gridEl = document.createElement('div');
+    tableEl.append(gridEl);
+
+    /**
+     * @param {typeof data[0]['bytes']} a
+     * @param {typeof data[0]['bytes']} b
+     * @return {number}
+     */
+    const bytesSorter = (a, b) => a.resource - b.resource;
+
+    this.table = new Tabulator(gridEl, {
+      data,
+      height: '100%',
+      layout: 'fitColumns',
+      tooltips: true,
+      addRowPos: 'top',
+      history: true,
+      resizableRows: true,
+      initialSort: [
+        {column: 'bytes', dir: 'desc'},
+      ],
+      columns: [
+        {title: 'Name', field: 'name'},
+        {title: 'Size / Unused', field: 'bytes', sorter: bytesSorter, formatter: cell => {
+          const value = cell.getValue();
+          // eslint-disable-next-line max-len
+          return `${TreemapUtil.formatBytes(value.resource)} / ${TreemapUtil.formatBytes(value.unused)}`;
+        }},
+        {title: 'Coverage', field: 'bytes', sorter: bytesSorter, formatter: cell => {
+          const value = cell.getValue();
+
+          const el = TreemapUtil.createElement('div', 'lh-coverage-bar');
+          el.style.setProperty('--max', String(maxSize));
+          el.style.setProperty('--used', String(value.resource - value.unused));
+          el.style.setProperty('--unused', String(value.unused));
+
+          TreemapUtil.createChildOf(el, 'div', 'lh-coverage-bar--used');
+          TreemapUtil.createChildOf(el, 'div', 'lh-coverage-bar--unused');
+
+          return el;
+        }},
+      ],
+    });
+  }
+
+  toggleTable() {
+    const mainEl = TreemapUtil.find('main');
+    mainEl.classList.toggle('lh-main--show-table');
   }
 
   resize() {
