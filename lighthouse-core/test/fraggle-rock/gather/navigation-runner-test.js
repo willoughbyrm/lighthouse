@@ -12,7 +12,7 @@ const {defaultNavigationConfig} = require('../../../config/constants.js');
 
 /* eslint-env jest */
 
-/** @typedef {{meta: LH.Gatherer.GathererMeta<'Accessibility'>, snapshot: jest.Mock<any, any>, beforeTimespan:jest.Mock<any, any>, afterTimespan: jest.Mock<any, any>, beforeNavigation:jest.Mock<any, any>, afterNavigation: jest.Mock<any, any>}} MockGatherer */
+/** @typedef {{meta: LH.Gatherer.GathererMeta<'Accessibility'>, collectArtifact: jest.Mock<any, any>, startInstrumentation:jest.Mock<any, any>, stopInstrumentation: jest.Mock<any, any>, startSensitiveInstrumentation:jest.Mock<any, any>, stopSensitiveInstrumentation: jest.Mock<any, any>}} MockGatherer */
 
 describe('NavigationRunner', () => {
   let requestedUrl = '';
@@ -31,11 +31,11 @@ describe('NavigationRunner', () => {
       instance: {
         name: 'Accessibility',
         meta: {supportedModes: []},
-        beforeTimespan: jest.fn(),
-        afterTimespan: jest.fn(),
-        beforeNavigation: jest.fn(),
-        afterNavigation: jest.fn(),
-        snapshot: jest.fn(),
+        startInstrumentation: jest.fn(),
+        stopInstrumentation: jest.fn(),
+        startSensitiveInstrumentation: jest.fn(),
+        stopSensitiveInstrumentation: jest.fn(),
+        collectArtifact: jest.fn(),
       },
     };
   }
@@ -44,13 +44,15 @@ describe('NavigationRunner', () => {
   function createNavigation() {
     const timespanGatherer = createGathererDefn();
     timespanGatherer.instance.meta.supportedModes = ['timespan', 'navigation'];
-    timespanGatherer.instance.afterTimespan = jest.fn().mockResolvedValue({type: 'timespan'});
+    timespanGatherer.instance.stopInstrumentation = jest.fn().mockResolvedValue({type: 'timespan'});
     const snapshotGatherer = createGathererDefn();
     snapshotGatherer.instance.meta.supportedModes = ['snapshot', 'navigation'];
-    snapshotGatherer.instance.snapshot = jest.fn().mockResolvedValue({type: 'snapshot'});
+    snapshotGatherer.instance.collectArtifact = jest.fn().mockResolvedValue({type: 'snapshot'});
     const navigationGatherer = createGathererDefn();
     navigationGatherer.instance.meta.supportedModes = ['navigation'];
-    navigationGatherer.instance.afterNavigation = jest.fn().mockResolvedValue({type: 'navigation'});
+    navigationGatherer.instance.stopSensitiveInstrumentation = jest
+      .fn()
+      .mockResolvedValue({type: 'navigation'});
 
     const navigation = {
       ...defaultNavigationConfig,
@@ -180,19 +182,21 @@ describe('NavigationRunner', () => {
         Snapshot: {type: 'snapshot'},
       });
 
-      expect(gatherers.navigation.afterNavigation).toHaveBeenCalled();
-      const navigationArgs = gatherers.navigation.afterNavigation.mock.calls[0];
+      expect(gatherers.navigation.stopSensitiveInstrumentation).toHaveBeenCalled();
+      const navigationArgs = gatherers.navigation.stopSensitiveInstrumentation.mock.calls[0];
       expect(navigationArgs[0].dependencies).toEqual({Accessibility: {type: 'timespan'}});
 
-      expect(gatherers.snapshot.snapshot).toHaveBeenCalled();
-      const snapshotArgs = gatherers.snapshot.snapshot.mock.calls[0];
+      expect(gatherers.snapshot.collectArtifact).toHaveBeenCalled();
+      const snapshotArgs = gatherers.snapshot.collectArtifact.mock.calls[0];
       expect(snapshotArgs[0].dependencies).toEqual({Accessibility: {type: 'timespan'}});
     });
 
     it('passes through an error in dependencies', async () => {
       const {navigation} = createNavigation();
       const err = new Error('Error in dependency chain');
-      navigation.artifacts[0].gatherer.instance.beforeTimespan = jest.fn().mockRejectedValue(err);
+      navigation.artifacts[0].gatherer.instance.startInstrumentation = jest
+        .fn()
+        .mockRejectedValue(err);
       navigation.artifacts[1].dependencies = {Accessibility: {id: 'Timespan'}};
       navigation.artifacts[2].dependencies = {Accessibility: {id: 'Timespan'}};
 
@@ -205,10 +209,10 @@ describe('NavigationRunner', () => {
       });
     });
 
-    it('passes through an error in beforeNavigation', async () => {
+    it('passes through an error in startSensitiveInstrumentation', async () => {
       const {navigation, gatherers} = createNavigation();
-      const err = new Error('Error in beforeNavigation');
-      gatherers.navigation.beforeNavigation.mockRejectedValue(err);
+      const err = new Error('Error in startSensitiveInstrumentation');
+      gatherers.navigation.startSensitiveInstrumentation.mockRejectedValue(err);
 
       const {artifacts} = await runner._navigation({driver, navigation, requestedUrl});
 
@@ -219,10 +223,10 @@ describe('NavigationRunner', () => {
       });
     });
 
-    it('passes through an error in beforeTimespan', async () => {
+    it('passes through an error in startInstrumentation', async () => {
       const {navigation, gatherers} = createNavigation();
-      const err = new Error('Error in beforeTimespan');
-      gatherers.timespan.beforeTimespan.mockRejectedValue(err);
+      const err = new Error('Error in startInstrumentation');
+      gatherers.timespan.startInstrumentation.mockRejectedValue(err);
 
       const {artifacts} = await runner._navigation({driver, navigation, requestedUrl});
 
@@ -263,50 +267,58 @@ describe('NavigationRunner', () => {
 
     beforeEach(() => {
       artifacts = {
-        beforeNavigation: {},
-        beforeTimespan: {},
-        afterTimespan: {},
-        afterNavigation: {},
-        snapshot: {},
+        startSensitiveInstrumentation: {},
+        startInstrumentation: {},
+        stopInstrumentation: {},
+        stopSensitiveInstrumentation: {},
+        collectArtifact: {},
       };
     });
 
     it('should run the navigation phase of navigation gatherers', async () => {
       const {navigation, gatherers} = createNavigation();
       const navigationContext = {driver, navigation, requestedUrl};
-      await runner._collectPhaseArtifacts({navigationContext, artifacts, phase: 'afterNavigation'});
-      expect(artifacts.afterNavigation).toEqual({Navigation: expect.any(Promise)});
-      expect(await artifacts.afterNavigation.Navigation).toEqual({type: 'navigation'});
-      expect(gatherers.navigation.afterNavigation).toHaveBeenCalled();
+      await runner._collectPhaseArtifacts({
+        navigationContext,
+        artifacts,
+        phase: 'stopSensitiveInstrumentation',
+      });
+      expect(artifacts.stopSensitiveInstrumentation).toEqual({Navigation: expect.any(Promise)});
+      expect(await artifacts.stopSensitiveInstrumentation.Navigation).toEqual({type: 'navigation'});
+      expect(gatherers.navigation.stopSensitiveInstrumentation).toHaveBeenCalled();
       // They were invoked but no artifact was produced.
-      expect(gatherers.timespan.afterNavigation).toHaveBeenCalled();
-      expect(gatherers.snapshot.afterNavigation).toHaveBeenCalled();
+      expect(gatherers.timespan.stopSensitiveInstrumentation).toHaveBeenCalled();
+      expect(gatherers.snapshot.stopSensitiveInstrumentation).toHaveBeenCalled();
     });
 
     it('should run the snapshot phase of snapshot gatherers', async () => {
       const {navigation, gatherers} = createNavigation();
       const navigationContext = {driver, navigation, requestedUrl};
-      await runner._collectPhaseArtifacts({navigationContext, artifacts, phase: 'snapshot'});
-      expect(artifacts.snapshot).toEqual({Snapshot: expect.any(Promise)});
-      expect(await artifacts.snapshot.Snapshot).toEqual({type: 'snapshot'});
-      expect(gatherers.snapshot.snapshot).toHaveBeenCalled();
-      expect(gatherers.navigation.snapshot).not.toHaveBeenCalled();
-      expect(gatherers.timespan.snapshot).not.toHaveBeenCalled();
+      await runner._collectPhaseArtifacts({navigationContext, artifacts, phase: 'collectArtifact'});
+      expect(artifacts.collectArtifact).toEqual({Snapshot: expect.any(Promise)});
+      expect(await artifacts.collectArtifact.Snapshot).toEqual({type: 'snapshot'});
+      expect(gatherers.snapshot.collectArtifact).toHaveBeenCalled();
+      expect(gatherers.navigation.collectArtifact).not.toHaveBeenCalled();
+      expect(gatherers.timespan.collectArtifact).not.toHaveBeenCalled();
     });
 
     it('should run the timespan phase of timespan gatherers', async () => {
       const {navigation, gatherers} = createNavigation();
       const navigationContext = {driver, navigation, requestedUrl};
-      await runner._collectPhaseArtifacts({navigationContext, artifacts, phase: 'afterTimespan'});
-      expect(artifacts.afterTimespan).toEqual({Timespan: expect.any(Promise)});
-      expect(await artifacts.afterTimespan.Timespan).toEqual({type: 'timespan'});
-      expect(gatherers.timespan.afterTimespan).toHaveBeenCalled();
-      expect(gatherers.snapshot.afterTimespan).not.toHaveBeenCalled();
-      expect(gatherers.navigation.afterTimespan).not.toHaveBeenCalled();
+      await runner._collectPhaseArtifacts({
+        navigationContext,
+        artifacts,
+        phase: 'stopInstrumentation',
+      });
+      expect(artifacts.stopInstrumentation).toEqual({Timespan: expect.any(Promise)});
+      expect(await artifacts.stopInstrumentation.Timespan).toEqual({type: 'timespan'});
+      expect(gatherers.timespan.stopInstrumentation).toHaveBeenCalled();
+      expect(gatherers.snapshot.stopInstrumentation).not.toHaveBeenCalled();
+      expect(gatherers.navigation.stopInstrumentation).not.toHaveBeenCalled();
     });
 
     it('should pass dependencies from prior phase to gatherers', async () => {
-      artifacts.afterTimespan = {
+      artifacts.stopInstrumentation = {
         Dependency: Promise.resolve([{src: 'https://example.com/image.jpg'}]),
       };
 
@@ -316,13 +328,13 @@ describe('NavigationRunner', () => {
       ];
 
       const navigationContext = {driver, navigation, requestedUrl};
-      await runner._collectPhaseArtifacts({navigationContext, artifacts, phase: 'snapshot'});
-      expect(artifacts.snapshot).toEqual({
+      await runner._collectPhaseArtifacts({navigationContext, artifacts, phase: 'collectArtifact'});
+      expect(artifacts.collectArtifact).toEqual({
         Snapshot: expect.any(Promise),
       });
-      expect(gatherers.snapshot.snapshot).toHaveBeenCalled();
+      expect(gatherers.snapshot.collectArtifact).toHaveBeenCalled();
 
-      const receivedDependencies = gatherers.snapshot.snapshot.mock.calls[0][0].dependencies;
+      const receivedDependencies = gatherers.snapshot.collectArtifact.mock.calls[0][0].dependencies;
       expect(receivedDependencies).toEqual({
         ImageElements: [{src: 'https://example.com/image.jpg'}],
       });
@@ -337,36 +349,42 @@ describe('NavigationRunner', () => {
       ];
 
       const navigationContext = {driver, navigation, requestedUrl};
-      await runner._collectPhaseArtifacts({navigationContext, artifacts, phase: 'snapshot'});
-      expect(artifacts.snapshot).toEqual({
+      await runner._collectPhaseArtifacts({navigationContext, artifacts, phase: 'collectArtifact'});
+      expect(artifacts.collectArtifact).toEqual({
         Dependency: expect.any(Promise),
         Snapshot: expect.any(Promise),
       });
 
       // Ensure neither threw an exception
-      await artifacts.snapshot.Dependency;
-      await artifacts.snapshot.Snapshot;
+      await artifacts.collectArtifact.Dependency;
+      await artifacts.collectArtifact.Snapshot;
 
-      expect(gatherers.snapshot.snapshot).toHaveBeenCalledTimes(2);
+      expect(gatherers.snapshot.collectArtifact).toHaveBeenCalledTimes(2);
 
-      const receivedDependencies = gatherers.snapshot.snapshot.mock.calls[1][0].dependencies;
+      const receivedDependencies = gatherers.snapshot.collectArtifact.mock.calls[1][0].dependencies;
       expect(receivedDependencies).toEqual({
         ImageElements: {type: 'snapshot'},
       });
     });
 
     it('should combine the previous promises', async () => {
-      artifacts.beforeTimespan = {Timespan: Promise.reject(new Error('beforeTimespan rejection'))};
+      artifacts.startInstrumentation = {
+        Timespan: Promise.reject(new Error('startInstrumentation rejection')),
+      };
 
       const {navigation, gatherers} = createNavigation();
       const navigationContext = {driver, navigation, requestedUrl};
-      await runner._collectPhaseArtifacts({navigationContext, artifacts, phase: 'afterTimespan'});
-      expect(artifacts.afterTimespan).toEqual({Timespan: expect.any(Promise)});
-      await expect(artifacts.afterTimespan.Timespan).rejects.toMatchObject({
-        message: 'beforeTimespan rejection',
+      await runner._collectPhaseArtifacts({
+        navigationContext,
+        artifacts,
+        phase: 'stopInstrumentation',
       });
-      expect(gatherers.timespan.afterTimespan).not.toHaveBeenCalled();
-      expect(gatherers.snapshot.afterTimespan).not.toHaveBeenCalled();
+      expect(artifacts.stopInstrumentation).toEqual({Timespan: expect.any(Promise)});
+      await expect(artifacts.stopInstrumentation.Timespan).rejects.toMatchObject({
+        message: 'startInstrumentation rejection',
+      });
+      expect(gatherers.timespan.stopInstrumentation).not.toHaveBeenCalled();
+      expect(gatherers.snapshot.stopInstrumentation).not.toHaveBeenCalled();
     });
   });
 });

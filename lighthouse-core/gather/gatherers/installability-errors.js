@@ -38,7 +38,7 @@ class InstallabilityErrors extends FRGatherer {
    * @param {LH.Gatherer.FRTransitionalContext} context
    * @return {Promise<LH.Artifacts['InstallabilityErrors']>}
    */
-  snapshot(context) {
+  collectArtifact(context) {
     const driver = context.driver;
 
     return InstallabilityErrors.getInstallabilityErrors(driver.defaultSession);

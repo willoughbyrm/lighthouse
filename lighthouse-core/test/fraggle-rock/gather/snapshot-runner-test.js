@@ -51,10 +51,10 @@ describe('Snapshot Runner', () => {
     });
 
     gathererA = createMockGathererInstance({supportedModes: ['snapshot']});
-    gathererA.snapshot.mockResolvedValue('Artifact A');
+    gathererA.collectArtifact.mockResolvedValue('Artifact A');
 
     gathererB = createMockGathererInstance({supportedModes: ['snapshot']});
-    gathererB.snapshot.mockResolvedValue('Artifact B');
+    gathererB.collectArtifact.mockResolvedValue('Artifact B');
 
     config = {
       artifacts: [
@@ -85,8 +85,8 @@ describe('Snapshot Runner', () => {
     await snapshot({page, config});
     const artifacts = await mockRunnerRun.mock.calls[0][0]();
     expect(artifacts).toMatchObject({A: 'Artifact A', B: 'Artifact B'});
-    expect(gathererA.snapshot).toHaveBeenCalled();
-    expect(gathererB.snapshot).toHaveBeenCalled();
+    expect(gathererA.collectArtifact).toHaveBeenCalled();
+    expect(gathererB.collectArtifact).toHaveBeenCalled();
   });
 
   it('should skip timespan artifacts', async () => {
@@ -96,7 +96,7 @@ describe('Snapshot Runner', () => {
     const artifacts = await mockRunnerRun.mock.calls[0][0]();
     expect(artifacts).toMatchObject({A: 'Artifact A'});
     expect(artifacts).not.toHaveProperty('B');
-    expect(gathererB.snapshot).not.toHaveBeenCalled();
+    expect(gathererB.collectArtifact).not.toHaveBeenCalled();
   });
 
   it('should support artifact dependencies', async () => {
@@ -108,7 +108,7 @@ describe('Snapshot Runner', () => {
     await snapshot({page, config});
     const artifacts = await mockRunnerRun.mock.calls[0][0]();
     expect(artifacts).toMatchObject({A: 'Artifact A', B: 'Artifact B'});
-    expect(gathererB.snapshot.mock.calls[0][0]).toMatchObject({
+    expect(gathererB.collectArtifact.mock.calls[0][0]).toMatchObject({
       dependencies: {
         ImageElements: 'Artifact A',
       },
