@@ -203,8 +203,7 @@ class TagsBlockingFirstPaint extends Gatherer {
    * @param {LH.Gatherer.PassContext} passContext
    */
   async beforePass(passContext) {
-    // Don't return return value of `evaluateScriptOnNewDocument`.
-    await passContext.driver.evaluateScriptOnNewDocument(`(${installMediaListener.toString()})()`);
+    await passContext.driver.executionContext.evaluateOnNewDocument(installMediaListener, {args: []});
   }
 
   /**

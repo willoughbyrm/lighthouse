@@ -6,6 +6,7 @@
 'use strict';
 
 const log = require('lighthouse-logger');
+const emulation = require('../lib/emulation.js');
 const LHError = require('../lib/lh-error.js');
 const NetworkAnalyzer = require('../lib/dependency-graph/simulator/network-analyzer.js');
 const NetworkRecorder = require('../lib/network-recorder.js');
@@ -13,6 +14,9 @@ const constants = require('../config/constants.js');
 const i18n = require('../lib/i18n/i18n.js');
 const URL = require('../lib/url-shim.js');
 const {getBenchmarkIndex} = require('./driver/environment.js');
+const {assertNoSameOriginServiceWorkerClients} = require('./driver/service-workers.js');
+const prepareDriver = require('./driver/prepare.js');
+const storage = require('./driver/storage.js');
 const WebAppManifest = require('./gatherers/web-app-manifest.js');
 const InstallabilityErrors = require('./gatherers/installability-errors.js');
 const NetworkUserAgent = require('./gatherers/network-user-agent.js');
@@ -128,19 +132,19 @@ class GatherRunner {
     const status = {msg: 'Initializing…', id: 'lh:gather:setupDriver'};
     log.time(status);
     const resetStorage = !options.settings.disableStorageReset;
-    await driver.assertNoSameOriginServiceWorkerClients(options.requestedUrl);
-    await driver.beginEmulation(options.settings);
-    await driver.enableRuntimeEvents();
-    await driver.enableAsyncStacks();
-    await driver.cacheNatives();
-    await driver.dismissJavaScriptDialogs();
-    await driver.registerRequestIdleCallbackWrap(options.settings);
+    await assertNoSameOriginServiceWorkerClients(driver.defaultSession, options.requestedUrl);
+    await emulation.emulate(driver.defaultSession, options.settings);
+    await emulation.throttle(driver.defaultSession, options.settings);
+    await prepareDriver.enableRuntimeEvents(driver.defaultSession);
+    await prepareDriver.enableAsyncStacks(driver.defaultSession);
+    await prepareDriver.dismissJavaScriptDialogs(driver.defaultSession);
+    await prepareDriver.registerRequestIdleCallbackWrap(driver.defaultSession, options.settings);
     if (resetStorage) {
-      const warning = await driver.getImportantStorageWarning(options.requestedUrl);
+      const warning = await storage.getImportantStorageWarning(driver.defaultSession, options.requestedUrl);
       if (warning) {
         LighthouseRunWarnings.push(warning);
       }
-      await driver.clearDataForOrigin(options.requestedUrl);
+      await storage.clearDataForOrigin(driver.defaultSession, options.requestedUrl);
     }
     log.timeEnd(status);
   }
@@ -344,17 +348,21 @@ class GatherRunner {
     const status = {msg: 'Setting up network for the pass trace', id: `lh:gather:setupPassNetwork`};
     log.time(status);
 
+    const session = passContext.driver.defaultSession;
     const passConfig = passContext.passConfig;
-    await passContext.driver.setThrottling(passContext.settings, passConfig);
+    if (passConfig.useThrottling) await emulation.throttle(session, passContext.settings);
+    else await emulation.clearThrottling(session);
 
     const blockedUrls = (passContext.passConfig.blockedUrlPatterns || [])
       .concat(passContext.settings.blockedUrlPatterns || []);
 
     // Set request blocking before any network activity
-    // No "clearing" is done at the end of the pass since blockUrlPatterns([]) will unset all if
+    // No "clearing" is done at the end of the pass since setBlockedURLs([]) will unset all if
     // neccessary at the beginning of the next pass.
-    await passContext.driver.blockUrlPatterns(blockedUrls);
-    await passContext.driver.setExtraHTTPHeaders(passContext.settings.extraHeaders);
+    await passContext.driver.sendCommand('Network.setBlockedURLs', {urls: blockedUrls});
+
+    const headers = passContext.settings.extraHeaders;
+    if (headers) await passContext.driver.sendCommand('Network.setExtraHTTPHeaders', {headers});
 
     log.timeEnd(status);
   }
@@ -752,7 +760,7 @@ class GatherRunner {
     const loadData = await GatherRunner.endRecording(passContext);
 
     // Disable throttling so the afterPass analysis isn't throttled
-    await driver.setThrottling(passContext.settings, {useThrottling: false});
+    await emulation.clearThrottling(driver.defaultSession);
 
     // In case of load error, save log and trace with an error prefix, return no artifacts for this pass.
     const pageLoadError = GatherRunner.getPageLoadError(passContext, loadData, possibleNavError);

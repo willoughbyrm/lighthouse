@@ -5,6 +5,8 @@
  */
 'use strict';
 
+/** @global window */
+
 const pageFunctions = require('../../lib/page-functions.js');
 
 class ExecutionContext {
@@ -83,8 +85,7 @@ class ExecutionContext {
       // 3. Ensure that errors captured in the Promise are converted into plain-old JS Objects
       //    so that they can be serialized properly b/c JSON.stringify(new Error('foo')) === '{}'
       expression: `(function wrapInNativePromise() {
-        const __nativePromise = globalThis.__nativePromise || Promise;
-        const URL = globalThis.__nativeURL || globalThis.URL;
+        ${ExecutionContext._cachedNativesPreamble}
         globalThis.__lighthouseExecutionContextId = ${contextId};
         return new __nativePromise(function (resolve) {
           return __nativePromise.resolve()
@@ -164,6 +165,7 @@ class ExecutionContext {
    * @return {FlattenedPromise<R>}
    */
   evaluate(mainFn, options) {
+    // TODO: handle undefined as an argument
     const argsSerialized = options.args.map(arg => JSON.stringify(arg)).join(',');
     const depsSerialized = options.deps ? options.deps.join('\n') : '';
     const expression = `(() => {
@@ -171,6 +173,49 @@ class ExecutionContext {
       return (${mainFn})(${argsSerialized});
     })()`;
     return this.evaluateAsync(expression, options);
+  }
+
+  /**
+   * Evaluate a function on every new frame from now on.
+   * @template {any[]} T
+   * @param {((...args: T) => void)} mainFn The main function to call.
+   * @param {{args: T, deps?: Array<Function|string>}} options `args` should
+   *   match the args of `mainFn`, and can be any serializable value. `deps` are functions that must be
+   *   defined for `mainFn` to work.
+   * @return {Promise<void>}
+   */
+  async evaluateOnNewDocument(mainFn, options) {
+    // TODO: handle undefined as an argument
+    const argsSerialized = options.args.map(arg => JSON.stringify(arg)).join(',');
+    const depsSerialized = options.deps ? options.deps.join('\n') : '';
+
+    await this._session.sendCommand('Page.addScriptToEvaluateOnNewDocument', {source: `
+      ${ExecutionContext._cachedNativesPreamble}
+      ${depsSerialized}
+      (${mainFn})(${argsSerialized});
+    `});
+  }
+
+  /**
+   * Cache native functions/objects inside window so we are sure polyfills do not overwrite the
+   * native implementations when the page loads.
+   * @return {Promise<void>}
+   */
+  async cacheNativesOnNewDocument() {
+    await this.evaluateOnNewDocument(() => {
+      window.__nativePromise = window.Promise;
+      window.__nativeURL = window.URL;
+      window.__nativePerformance = window.performance;
+      window.__ElementMatches = window.Element.prototype.matches;
+    }, {args: []});
+  }
+
+  static get _cachedNativesPreamble() {
+    return [
+      'const Promise = globalThis.__nativePromise || globalThis.Promise',
+      'const URL = globalThis.__nativeURL || globalThis.URL',
+      'const performance = globalThis.__nativePerformance || globalThis.performance',
+    ].join(';\n');
   }
 }
 
