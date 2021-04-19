@@ -118,12 +118,19 @@ class Fetcher {
 
     let ioResponse;
     let data = '';
+    let firstRead = true;
     while (!ioResponse || !ioResponse.eof) {
       const elapsedTime = Date.now() - startTime;
       if (elapsedTime > options.timeout) {
         throw new Error('Waiting for the end of the IO stream exceeded the allotted time.');
       }
-      ioResponse = await this.driver.sendCommand('IO.read', {handle});
+
+      if (firstRead) {
+        ioResponse = await this.driver.sendCommand('IO.read', {handle, size: 1});
+        firstRead = false;
+      } else {
+        ioResponse = await this.driver.sendCommand('IO.read', {handle});
+      }
 
       const responseData = ioResponse.base64Encoded ?
         Buffer.from(ioResponse.data, 'base64').toString('utf-8') :
@@ -136,10 +143,36 @@ class Fetcher {
 
   /**
    * @param {string} url
+   */
+  async _fetchStream(url) {
+    await this.driver.sendCommand('Network.enable');
+    const frameTreeResponse = await this.driver.sendCommand('Page.getFrameTree');
+    const networkResponse = await this.driver.sendCommand('Network.loadNetworkResource', {
+      frameId: frameTreeResponse.frameTree.frame.id,
+      url,
+      options: {
+        disableCache: true,
+        includeCredentials: true,
+      },
+    });
+    await this.driver.sendCommand('Network.disable');
+
+    if (!networkResponse.resource.success || !networkResponse.resource.stream) {
+      const statusCode = networkResponse.resource.httpStatusCode || '';
+      throw new Error(`Loading network resource failed (${statusCode})`);
+    }
+
+    return networkResponse.resource.stream;
+  }
+
+  /**
+   * @param {string} url
    * @param {{timeout: number}=} options timeout is in ms
    * @return {Promise<string>}
    */
   async _fetchResourceOverProtocol(url, options = {timeout: 500}) {
+    const startTime = Date.now();
+
     /** @type {NodeJS.Timeout} */
     let timeoutHandle;
     const timeoutPromise = new Promise((_, reject) => {
@@ -147,31 +180,12 @@ class Fetcher {
         reject(new Error('Timed out fetching resource'));
       }, options.timeout);
     });
-    const fetchStreamPromise = new Promise(async (resolve, reject) => {
-      await this.driver.sendCommand('Network.enable');
-      const frameTreeResponse = await this.driver.sendCommand('Page.getFrameTree');
-      const networkResponse = await this.driver.sendCommand('Network.loadNetworkResource', {
-        frameId: frameTreeResponse.frameTree.frame.id,
-        url,
-        options: {
-          disableCache: true,
-          includeCredentials: true,
-        },
-      });
-      await this.driver.sendCommand('Network.disable');
 
-      if (!networkResponse.resource.success || !networkResponse.resource.stream) {
-        const statusCode = networkResponse.resource.httpStatusCode || '';
-        reject(new Error(`Loading network resource failed (${statusCode})`));
-      }
-
-      resolve(networkResponse.resource.stream);
-    });
-
+    const fetchStreamPromise = this._fetchStream(url);
     const stream = await Promise.race([fetchStreamPromise, timeoutPromise])
       .finally(() => clearTimeout(timeoutHandle));
 
-    return await this._readIOStream(stream);
+    return await this._readIOStream(stream, {timeout: options.timeout - (Date.now() - startTime)});
   }
 
   /**

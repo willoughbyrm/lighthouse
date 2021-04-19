@@ -157,4 +157,22 @@ describe('._fetchResourceOverProtocol', () => {
     const dataPromise = fetcher._fetchResourceOverProtocol('https://example.com', {timeout: 50});
     await expect(dataPromise).rejects.toThrowError(/Timed out fetching resource/);
   });
+
+  it('uses remaining time on _readIOStream', async () => {
+    connectionStub.sendCommand = createMockSendCommandFn()
+      .mockResponse('Network.enable')
+      .mockResponse('Page.getFrameTree', {frameTree: {frame: {id: 'FRAME'}}})
+      .mockResponse('Network.loadNetworkResource', {
+        resource: {success: true, httpStatusCode: 200, stream: '1'},
+      }, 500)
+      .mockResponse('Network.disable');
+
+    let timeout;
+    fetcher._readIOStream = jest.fn().mockImplementation((_, options) => {
+      timeout = options.timeout;
+    });
+
+    await fetcher._fetchResourceOverProtocol('https://example.com', {timeout: 1000});
+    expect(timeout).toBeCloseTo(500, -2);
+  });
 });
