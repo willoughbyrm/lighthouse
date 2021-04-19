@@ -125,6 +125,9 @@ class Fetcher {
         throw new Error('Waiting for the end of the IO stream exceeded the allotted time.');
       }
 
+      // Force CDP to make multiple reads for each resource.
+      // `IO.read` takes extra long when only one read is required to reach EOF.
+      // https://bugs.chromium.org/p/chromium/issues/detail?id=1191757
       if (firstRead) {
         ioResponse = await this.driver.sendCommand('IO.read', {handle, size: 1});
         firstRead = false;
