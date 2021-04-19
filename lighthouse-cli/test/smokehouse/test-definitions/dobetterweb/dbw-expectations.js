@@ -11,6 +11,12 @@
  */
 const expectations = [
   {
+    networkRequests: {
+      // 50 requests made for normal page testing.
+      // 6 extra requests made because stylesheets are evicted from the cache by the time DT opens.
+      // 3 extra requests made to /dobetterweb/clock.appcache
+      length: 59,
+    },
     artifacts: {
       HostFormFactor: 'desktop',
       Stacks: [{
@@ -54,24 +60,6 @@ const expectations = [
           rel: 'stylesheet',
           href: 'http://localhost:10200/dobetterweb/dbw_disabled.css?delay=200&isdisabled',
           hrefRaw: './dbw_disabled.css?delay=200&isdisabled',
-          hreflang: '',
-          as: '',
-          crossOrigin: null,
-          source: 'head',
-        },
-        {
-          rel: 'import',
-          href: 'http://localhost:10200/dobetterweb/dbw_partial_a.html?delay=200',
-          hrefRaw: './dbw_partial_a.html?delay=200',
-          hreflang: '',
-          as: '',
-          crossOrigin: null,
-          source: 'head',
-        },
-        {
-          rel: 'import',
-          href: 'http://localhost:10200/dobetterweb/dbw_partial_b.html?delay=200&isasync',
-          hrefRaw: './dbw_partial_b.html?delay=200&isasync',
           hreflang: '',
           as: '',
           crossOrigin: null,
@@ -158,12 +146,6 @@ const expectations = [
             url: 'http://localhost:10200/dobetterweb/dbw_tester.css?delay=2200',
           },
 
-        },
-        {
-          tag: {
-            tagName: 'LINK',
-            url: 'http://localhost:10200/dobetterweb/dbw_partial_a.html?delay=200',
-          },
         },
         {
           tag: {
@@ -308,9 +290,6 @@ const expectations = [
               },
               {
                 url: 'http://localhost:10200/dobetterweb/dbw_tester.css?delay=2200',
-              },
-              {
-                url: 'http://localhost:10200/dobetterweb/dbw_partial_a.html?delay=200',
               },
               {
                 url: 'http://localhost:10200/dobetterweb/dbw_tester.css?delay=3000&capped',

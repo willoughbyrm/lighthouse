@@ -1,4 +1,4 @@
-# Lighthouse  [![GitHub Actions Status Badge](https://github.com/GoogleChrome/lighthouse/workflows/💡🏠/badge.svg)](https://github.com/GoogleChrome/lighthouse/actions) [![Coverage Status](https://img.shields.io/coveralls/GoogleChrome/lighthouse/master.svg)](https://coveralls.io/github/GoogleChrome/lighthouse?branch=master) [![Build tracker for Lighthouse](https://img.shields.io/badge/buildtracker-ok-blue)](https://lh-build-tracker.herokuapp.com/) [![NPM lighthouse package](https://img.shields.io/npm/v/lighthouse.svg)](https://npmjs.org/package/lighthouse)
+# Lighthouse  [![GitHub Actions Status Badge](https://github.com/GoogleChrome/lighthouse/workflows/💡🏠/badge.svg)](https://github.com/GoogleChrome/lighthouse/actions) [![Coverage Status](https://codecov.io/gh/GoogleChrome/lighthouse/branch/master/graph/badge.svg)](https://codecov.io/gh/GoogleChrome/lighthouse) [![Build tracker for Lighthouse](https://img.shields.io/badge/buildtracker-ok-blue)](https://lh-build-tracker.herokuapp.com/) [![NPM lighthouse package](https://img.shields.io/npm/v/lighthouse.svg)](https://npmjs.org/package/lighthouse)
 
 > Lighthouse analyzes web apps and web pages, collecting modern performance metrics and insights on developer best practices.
 
@@ -329,6 +329,8 @@ This section details services that have integrated Lighthouse data. If you're wo
 * **[DebugBear](https://www.debugbear.com/)** - DebugBear is a website monitoring tool based on Lighthouse. See how your scores and metrics changed over time, with a focus on understanding what caused each change. DebugBear is a paid product with a free 30-day trial.
 
 * **[Treo](https://treo.sh)** - Treo is Lighthouse as a Service. It provides regression testing, geographical regions, custom networks, and integrations with GitHub & Slack. Treo is a paid product with plans for solo-developers and teams.
+
+* **[Alertdesk](https://www.alertdesk.com/)** - Alertdesk is based on Lighthouse and helps you to keep track of your site’s quality & performance. Run daily quality & performance tests from both Mobile and Desktop and dive into the powerful & intuitive reports. You can also monitor your uptime (every minute - 24/7) & domain health. Alertdesk is a paid product with a free 14-day trial.
 
 * **[Screpy](https://screpy.com)** - Screpy is a web analysis tool that can analyze all pages of your websites in one dashboard and monitor them with your team. It's powered by Lighthouse and it also includes some different analysis tools (SERP, W3C, Uptime, etc). Screpy has free and paid plans.
 
