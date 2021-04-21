@@ -14,9 +14,9 @@ function headersParam(headers) {
   return new URLSearchParams([['extra_header', headerString]]).toString();
 }
 
-const superStrictCsp = headersParam([[
+const blockAllExceptInlineScriptCsp = headersParam([[
   'Content-Security-Policy',
-  'default-src \'none\'; sandbox allow-scripts;',
+  'default-src \'none\'; script-src \'unsafe-inline\'',
 ]]);
 
 /**
@@ -30,6 +30,11 @@ module.exports = [
         content: null,
       },
       InspectorIssues: {contentSecurityPolicy: []},
+      SourceMaps: [{
+        sourceMapUrl: 'http://localhost:10200/source-map/script.js.map',
+        map: {},
+        errorMessage: undefined,
+      }],
     },
     lhr: {
       requestedUrl: 'http://localhost:10200/csp.html',
@@ -58,10 +63,15 @@ module.exports = [
           },
         ],
       },
+      SourceMaps: [{
+        sourceMapUrl: 'http://localhost:10200/source-map/script.js.map',
+        errorMessage: 'Error: Timed out fetching resource.',
+        map: undefined,
+      }],
     },
     lhr: {
-      requestedUrl: 'http://localhost:10200/csp.html?' + superStrictCsp,
-      finalUrl: 'http://localhost:10200/csp.html?' + superStrictCsp,
+      requestedUrl: 'http://localhost:10200/csp.html?' + blockAllExceptInlineScriptCsp,
+      finalUrl: 'http://localhost:10200/csp.html?' + blockAllExceptInlineScriptCsp,
       audits: {},
     },
   },
