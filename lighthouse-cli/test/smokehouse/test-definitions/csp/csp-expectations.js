@@ -51,12 +51,16 @@ module.exports = [
       InspectorIssues: {
         contentSecurityPolicy: [
           {
+            // TODO: Fix connect-src violation when fetching robots.txt.
+            // https://github.com/GoogleChrome/lighthouse/issues/10225
             blockedURL: 'http://localhost:10200/robots.txt',
             violatedDirective: 'connect-src',
             isReportOnly: false,
             contentSecurityPolicyViolationType: 'kURLViolation',
           },
           {
+            // TODO: Fix style-src-elem violation when checking tap targets.
+            // https://github.com/GoogleChrome/lighthouse/issues/11862
             violatedDirective: 'style-src-elem',
             isReportOnly: false,
             contentSecurityPolicyViolationType: 'kInlineViolation',
@@ -64,6 +68,9 @@ module.exports = [
         ],
       },
       SourceMaps: [{
+        // TODO: Fix frame-src violation when using iframe fetcher.
+        // Doesn't trigger a CSP violation because iframe is injected after InspectorIssues gatherer finishes.
+        // https://github.com/GoogleChrome/lighthouse/pull/12044#issuecomment-788274938
         sourceMapUrl: 'http://localhost:10200/source-map/script.js.map',
         errorMessage: 'Error: Timed out fetching resource.',
         map: undefined,
