@@ -8,7 +8,6 @@
 const Fetcher = require('./fetcher.js');
 const ExecutionContext = require('./driver/execution-context.js');
 const {waitForFullyLoaded, waitForFrameNavigated} = require('./driver/wait-for-condition.js');
-const emulation = require('../lib/emulation.js');
 const LHElement = require('../lib/lh-element.js');
 const LHError = require('../lib/lh-error.js');
 const NetworkRequest = require('../lib/network-request.js');
@@ -399,17 +398,6 @@ class Driver {
   }
 
   /**
-   * Add a script to run at load time of all future page loads.
-   * @param {string} scriptSource
-   * @return {Promise<LH.Crdp.Page.AddScriptToEvaluateOnLoadResponse>} Identifier of the added script.
-   */
-  evaluateScriptOnNewDocument(scriptSource) {
-    return this.sendCommand('Page.addScriptToEvaluateOnLoad', {
-      scriptSource,
-    });
-  }
-
-  /**
    * @return {Promise<LH.Crdp.ServiceWorker.WorkerVersionUpdatedEvent>}
    */
   getServiceWorkerVersions() {
@@ -763,35 +751,6 @@ class Driver {
   }
 
   /**
-   * @param {LH.Config.Settings} settings
-   * @return {Promise<void>}
-   */
-  async beginEmulation(settings) {
-    await emulation.emulate(this, settings);
-    await this.setThrottling(settings, {useThrottling: true});
-  }
-
-  /**
-   * @param {LH.Config.Settings} settings
-   * @param {{useThrottling?: boolean}} passConfig
-   * @return {Promise<void>}
-   */
-  async setThrottling(settings, passConfig) {
-    if (settings.throttlingMethod !== 'devtools') {
-      return emulation.clearAllNetworkEmulation(this);
-    }
-
-    const cpuPromise = passConfig.useThrottling ?
-        emulation.enableCPUThrottling(this, settings.throttling) :
-        emulation.disableCPUThrottling(this);
-    const networkPromise = passConfig.useThrottling ?
-        emulation.enableNetworkThrottling(this, settings.throttling) :
-        emulation.clearAllNetworkEmulation(this);
-
-    await Promise.all([cpuPromise, networkPromise]);
-  }
-
-  /**
    * Clear the network cache on disk and in memory.
    * @return {Promise<void>}
    */
@@ -886,29 +845,6 @@ class Driver {
   }
 
   /**
-   * Cache native functions/objects inside window
-   * so we are sure polyfills do not overwrite the native implementations
-   * @return {Promise<void>}
-   */
-  async cacheNatives() {
-    await this.evaluateScriptOnNewDocument(`
-        window.__nativePromise = Promise;
-        window.__nativeURL = URL;
-        window.__ElementMatches = Element.prototype.matches;
-        window.__perfNow = performance.now.bind(performance);
-    `);
-  }
-
-  /**
-   * Install a performance observer that watches longtask timestamps for waitForCPUIdle.
-   * @return {Promise<void>}
-   */
-  async registerPerformanceObserver() {
-    const scriptStr = `(${pageFunctions.registerPerformanceObserverInPageString})()`;
-    await this.evaluateScriptOnNewDocument(scriptStr);
-  }
-
-  /**
    * Use a RequestIdleCallback shim for tests run with simulated throttling, so that the deadline can be used without
    * a penalty
    * @param {LH.Config.Settings} settings
@@ -916,9 +852,10 @@ class Driver {
    */
   async registerRequestIdleCallbackWrap(settings) {
     if (settings.throttlingMethod === 'simulate') {
-      const scriptStr = `(${pageFunctions.wrapRequestIdleCallbackString})
-        (${settings.throttling.cpuSlowdownMultiplier})`;
-      await this.evaluateScriptOnNewDocument(scriptStr);
+      await this.executionContext.evaluateOnNewDocument(
+        pageFunctions.wrapRequestIdleCallback,
+        {args: [settings.throttling.cpuSlowdownMultiplier]}
+      );
     }
   }
 

@@ -36,12 +36,6 @@ function makeFakeDriver({protocolGetVersionResponse}) {
     gotoURL(url) {
       return Promise.resolve({finalUrl: url, timedOut: false});
     },
-    beginEmulation() {
-      return Promise.resolve();
-    },
-    setThrottling() {
-      return Promise.resolve();
-    },
     dismissJavaScriptDialogs() {
       return Promise.resolve();
     },
@@ -57,16 +51,10 @@ function makeFakeDriver({protocolGetVersionResponse}) {
     enableAsyncStacks() {
       return Promise.resolve();
     },
-    evaluateScriptOnLoad() {
-      return Promise.resolve();
-    },
     cleanBrowserCaches() {},
     clearDataForOrigin() {},
     getImportantStorageWarning() {
       return Promise.resolve(undefined);
-    },
-    cacheNatives() {
-      return Promise.resolve();
     },
     executionContext: {
       evaluateAsync() {
@@ -74,6 +62,9 @@ function makeFakeDriver({protocolGetVersionResponse}) {
       },
       evaluate() {
         return Promise.resolve({});
+      },
+      cacheNativesOnNewDocument() {
+        return Promise.resolve();
       },
     },
     /** @param {{x: number, y: number}} position */
@@ -83,9 +74,6 @@ function makeFakeDriver({protocolGetVersionResponse}) {
     },
     getScrollPosition() {
       return Promise.resolve(scrollPosition);
-    },
-    registerPerformanceObserver() {
-      return Promise.resolve();
     },
     beginTrace() {
       return Promise.resolve();

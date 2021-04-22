@@ -79,6 +79,11 @@ body {
   padding: 2px;
 }
 
+.bundle-selector {
+  width: 50%;
+  padding: 2px;
+}
+
 .lh-topbar__logo {
   width: 24px;
   height: 24px;
