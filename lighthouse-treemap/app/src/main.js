@@ -105,13 +105,6 @@ class TreemapViewer {
       optionEl.textContent = text;
     }
 
-    function onChange() {
-      const index = Number(bundleSelectorEl.value);
-      const selector = selectors[index];
-      treemapViewer.setSelector(selector);
-      treemapViewer.render();
-    }
-
     for (const [group, depthOneNodes] of Object.entries(this.depthOneNodesByGroup)) {
       makeOption({type: 'group', value: group}, `All ${group}`);
       for (const depthOneNode of depthOneNodes) {
@@ -128,7 +121,12 @@ class TreemapViewer {
         s.value === this.selector.value;
     });
     bundleSelectorEl.value = String(currentSelectorIndex !== -1 ? currentSelectorIndex : 0);
-    bundleSelectorEl.addEventListener('change', onChange);
+    bundleSelectorEl.addEventListener('change', () => {
+      const index = Number(bundleSelectorEl.value);
+      const selector = selectors[index];
+      this.setSelector(selector);
+      this.render();
+    });
   }
 
   initListeners() {
