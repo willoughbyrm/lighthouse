@@ -118,23 +118,12 @@ class Fetcher {
 
     let ioResponse;
     let data = '';
-    let firstRead = true;
     while (!ioResponse || !ioResponse.eof) {
       const elapsedTime = Date.now() - startTime;
       if (elapsedTime > options.timeout) {
         throw new Error('Waiting for the end of the IO stream exceeded the allotted time.');
       }
-
-      // Force CDP to make multiple reads for each resource.
-      // `IO.read` takes extra long when only one read is required to reach EOF.
-      // https://bugs.chromium.org/p/chromium/issues/detail?id=1191757
-      if (firstRead) {
-        ioResponse = await this.driver.sendCommand('IO.read', {handle, size: 1});
-        firstRead = false;
-      } else {
-        ioResponse = await this.driver.sendCommand('IO.read', {handle});
-      }
-
+      ioResponse = await this.driver.sendCommand('IO.read', {handle});
       const responseData = ioResponse.base64Encoded ?
         Buffer.from(ioResponse.data, 'base64').toString('utf-8') :
         ioResponse.data;
