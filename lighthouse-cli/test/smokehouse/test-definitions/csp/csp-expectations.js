@@ -14,9 +14,10 @@ function headersParam(headers) {
   return new URLSearchParams([['extra_header', headerString]]).toString();
 }
 
+// Only allow the empty script with the source map.
 const blockAllExceptInlineScriptCsp = headersParam([[
   'Content-Security-Policy',
-  'default-src \'none\'; script-src \'unsafe-inline\'',
+  `default-src 'none'; script-src 'sha256-qZLV55/xxILbIrha9pgX0OdkZMhOlaIgfpEo/6Dly2U='`,
 ]]);
 
 /**
