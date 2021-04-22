@@ -15,6 +15,8 @@ function headersParam(headers) {
 }
 
 // Only allow the empty script with the source map.
+// Hash generated using https://strict-csp-codelab.glitch.me/csp_sha256_util.html
+// Easiest way to get script contents with whitespace is by copying script node in DevTools.
 const blockAllExceptInlineScriptCsp = headersParam([[
   'Content-Security-Policy',
   `default-src 'none'; script-src 'sha256-qZLV55/xxILbIrha9pgX0OdkZMhOlaIgfpEo/6Dly2U='`,
