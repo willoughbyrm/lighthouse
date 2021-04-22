@@ -341,6 +341,16 @@ class TreemapViewer {
       });
     });
 
+    /** @param {Tabulator.CellComponent} cell */
+    const makeCoverageTooltip = (cell) => {
+      /** @type {typeof data[number]} */
+      const dataRow = cell.getRow().getData();
+      if (!dataRow.unusedBytes) return '';
+
+      const percent = Math.floor(100 * dataRow.unusedBytes / dataRow.resourceBytes);
+      return `${percent}% bytes unused`;
+    };
+
     const gridEl = document.createElement('div');
     tableEl.append(gridEl);
 
@@ -357,18 +367,19 @@ class TreemapViewer {
         {column: 'resourceBytes', dir: 'desc'},
       ],
       columns: [
-        {title: 'Name', field: 'name'},
+        {title: 'Name', field: 'name', widthGrow: 5},
         {title: 'Size', field: 'resourceBytes', formatter: cell => {
           const value = cell.getValue();
           return TreemapUtil.formatBytes(value);
         }},
         // eslint-disable-next-line max-len
-        {title: 'Unused', field: 'unusedBytes', sorterParams: {alignEmptyValues: 'bottom'}, formatter: cell => {
+        {title: 'Unused', field: 'unusedBytes', widthGrow: 1, sorterParams: {alignEmptyValues: 'bottom'}, formatter: cell => {
           const value = cell.getValue();
           if (value === undefined) return '';
           return TreemapUtil.formatBytes(value);
         }},
-        {title: 'Coverage', field: 'resourceBytes', formatter: cell => {
+        // eslint-disable-next-line max-len
+        {title: 'Coverage', field: 'resourceBytes', widthGrow: 3, tooltip: makeCoverageTooltip, formatter: cell => {
           /** @type {typeof data[number]} */
           const dataRow = cell.getRow().getData();
 
@@ -400,6 +411,7 @@ class TreemapViewer {
 
     this.treemap.layout(this.currentTreemapRoot, this.el);
     this.updateColors();
+    if (this.table) this.table.redraw();
   }
 
   /**
