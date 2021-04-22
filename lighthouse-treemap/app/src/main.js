@@ -316,7 +316,7 @@ class TreemapViewer {
     const tableEl = TreemapUtil.find('.lh-table');
     tableEl.innerHTML = '';
 
-    /** @type {Array<{name: string, bytes: {resource: number, unused?: number}}>} */
+    /** @type {Array<{name: string, resourceBytes: number, unusedBytes?: number}>} */
     const data = [];
     TreemapUtil.walk(this.currentTreemapRoot, (node, path) => {
       if (node.children) return;
@@ -336,19 +336,13 @@ class TreemapViewer {
 
       data.push({
         name,
-        bytes: {resource: node.resourceBytes, unused: node.unusedBytes},
+        resourceBytes: node.resourceBytes,
+        unusedBytes: node.unusedBytes,
       });
     });
 
     const gridEl = document.createElement('div');
     tableEl.append(gridEl);
-
-    /**
-     * @param {typeof data[0]['bytes']} a
-     * @param {typeof data[0]['bytes']} b
-     * @return {number}
-     */
-    const bytesSorter = (a, b) => a.resource - b.resource;
 
     const maxSize = this.currentTreemapRoot.resourceBytes;
     this.table = new Tabulator(gridEl, {
@@ -360,26 +354,30 @@ class TreemapViewer {
       history: true,
       resizableColumns: true,
       initialSort: [
-        {column: 'bytes', dir: 'desc'},
+        {column: 'resourceBytes', dir: 'desc'},
       ],
       columns: [
         {title: 'Name', field: 'name'},
-        {title: 'Size / Unused', field: 'bytes', sorter: bytesSorter, formatter: cell => {
+        {title: 'Size', field: 'resourceBytes', formatter: cell => {
           const value = cell.getValue();
-          if (!value.unused) return TreemapUtil.formatBytes(value.resource);
-
-          // eslint-disable-next-line max-len
-          return `${TreemapUtil.formatBytes(value.resource)} / ${TreemapUtil.formatBytes(value.unused)}`;
+          return TreemapUtil.formatBytes(value);
         }},
-        {title: 'Coverage', field: 'bytes', sorter: bytesSorter, formatter: cell => {
+        // eslint-disable-next-line max-len
+        {title: 'Unused', field: 'unusedBytes', sorterParams: {alignEmptyValues: 'bottom'}, formatter: cell => {
           const value = cell.getValue();
+          if (value === undefined) return '';
+          return TreemapUtil.formatBytes(value);
+        }},
+        {title: 'Coverage', field: 'resourceBytes', formatter: cell => {
+          /** @type {typeof data[number]} */
+          const dataRow = cell.getRow().getData();
 
           const el = TreemapUtil.createElement('div', 'lh-coverage-bar');
-          if (!value.unused) return el;
+          if (dataRow.unusedBytes === undefined) return el;
 
           el.style.setProperty('--max', String(maxSize));
-          el.style.setProperty('--used', String(value.resource - value.unused));
-          el.style.setProperty('--unused', String(value.unused));
+          el.style.setProperty('--used', String(dataRow.resourceBytes - dataRow.unusedBytes));
+          el.style.setProperty('--unused', String(dataRow.unusedBytes));
 
           TreemapUtil.createChildOf(el, 'div', 'lh-coverage-bar--used');
           TreemapUtil.createChildOf(el, 'div', 'lh-coverage-bar--unused');
